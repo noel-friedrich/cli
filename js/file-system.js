@@ -222,5 +222,6 @@ let FILE_SYSTEM = new FileElement(FileType.FOLDER, {
         }, {"<": "cd ..", "passwords": "cat passwords.json"}),
         "contact.txt": new FileElement(FileType.READABLE, contact_txt),
     }, {"<": "cd ..", "secret": "cd secret/", "contact": "cat contact.txt"}),
-    "extras.txt": new FileElement(FileType.READABLE, extras_txt)
+    "extras.txt": new FileElement(FileType.READABLE, extras_txt),
+    "github.exe": new FileElement(FileType.PROGRAM, "https://github.com/noel-friedrich/cli"),
 }, {"projects": ["cd projects/", "cat README.txt"], "about me": "cat about.txt", "help": "help"})
