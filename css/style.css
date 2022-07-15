@@ -1,0 +1,102 @@
+html {
+    width: 100%;
+    height: 100%;
+
+    --background: rgb(3, 3, 6);
+    --foreground: rgb(255, 255, 255);
+}
+
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+#terminal {
+    width: 100%;
+    height: 100%;
+    background-color: var(--background);
+    transition: 0.5s;
+    padding: 50px;
+    box-sizing: border-box;
+
+    --font-size: 1em;
+
+    overflow-y: auto;
+}
+
+#terminal.mobile {
+    padding-bottom: 300px;
+}
+
+#terminal * {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--font-size);
+}
+
+#terminal pre {
+    display: inline;
+    cursor: default;
+    color: var(--foreground);
+    transition: color 0.5s;
+}
+
+#terminal input {
+    border: none;
+    background: transparent;
+    color: var(--foreground);
+    margin: 0;
+    padding: 0;
+    transition: color 0.5s;
+}
+
+#terminal input:focus {
+    outline: none;
+}
+
+#terminal-buttons {
+    position: absolute;
+    right: 15%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20%;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-row-gap: 10px;
+}
+
+#terminal-buttons.mobile {
+    position: fixed;
+    top: auto;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    transform: none;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+#terminal-buttons > button {
+    display: block;
+    background-color: var(--foreground);
+    transition: 0.2s;
+    border: none;
+    padding: 20px;
+    font-family:'Courier New', Courier, monospace;
+    font-size: 3em;
+    color: var(--background);
+    cursor: pointer;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+}
+
+#terminal-buttons.mobile > button {
+    padding: 2px;
+    font-size: 2em;
+}
+
+#terminal-buttons > button:hover {
+    background-color: transparent;
+    color: var(--foreground);
+    border: 1px solid var(--foreground);
+}
