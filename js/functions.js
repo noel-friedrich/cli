@@ -384,7 +384,7 @@ terminal.addFunction("cp", async function(rawArgs) {
     directory.content[fileName] = file
 
     await animatedDo("copying")
-}, "duplicate a file of the current directory to another directory")
+}, "duplicate a file to another folder")
 
 terminal.addFunction("mv", async function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs)
@@ -475,7 +475,7 @@ terminal.addFunction("rm", async function(rawArgs) {
     await animatedDo("deleting")
 }, "delete a file of the current directory")
 
-terminal.addFunction("curl", missingPermissions, "download a file")
+terminal.addFunction("curl", missingPermissions, "download a file from the internet")
 
 terminal.addFunction("edit", async function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs)
@@ -1306,8 +1306,8 @@ terminal.addFunction("plot", async function(argString) {
         return
     }
     let gridSize = {
-        x: 40,
-        y: 20
+        x: 60,
+        y: 30
     }
     while (/[0-9]x/g.test(equation)) equation = equation.replace(/([0-9])x/g, "$1*x")
     while (/[0-9a-z\.]+\s*\^\s*[0-9a-z\.]+/g.test(equation)) equation = equation.replace(/([0-9a-z\.]+)\s*\^\s*([0-9a-z\.]+)/g, "$1**$2")
@@ -1747,3 +1747,35 @@ terminal.addFunction("cmatrix", async function(rawArgs) {
         await sleep(100)
     }
 }, "feel cool, be hacker", true)
+
+terminal.addFunction("download", function(rawArgs) {
+    function downloadFile(fileName, content) {
+        let element = document.createElement('a')
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content))
+        element.setAttribute('download', fileName)
+        element.style.display = 'none'
+        document.body.appendChild(element)
+        element.click()
+        document.body.removeChild(element)
+    }
+
+    let parsedArgs = parseArgs(rawArgs)
+    if (parsedArgs.length != 1) {
+        terminal.printLine(`You must supply 1 file name to download:`)
+        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} download ${{[Color.YELLOW]: "<file_name>"}}'\n`
+        return
+    }
+
+    let openFileName = parsedArgs[0]
+    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
+        if (fileName == openFileName && (file.type != FileType.FOLDER)) {
+            downloadFile(openFileName, file.content)
+            return
+        } else if (fileName == openFileName) {
+            terminal.printf`${{[Color.RED]: "Error"}}: Cannot download Folder\n`
+            return
+        }
+    }
+    terminal.printLine(`${openFileName}: file not found`)
+    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
+}, "download a local file")
