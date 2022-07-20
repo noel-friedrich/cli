@@ -11,7 +11,7 @@
 ## Introduction
 
 The page is build to work like a Unix-Terminal, including:
-* 100-ish Commands (functions) such as `ls`, `cd` and of course `cowsay`
+* 100-ish Commands (functions!) such as `ls`, `cd` and of course `cowsay`
 * a file-system that you can navigate and manipulate
 * fun like TAB-autocompletion, `history` or `cmatrix`
 * multiple ways to get rickrolled
