@@ -353,7 +353,9 @@ class Terminal {
         if (lineBreak) this.addLineBreak(false)
         this.print(`home/${this.currPath.join("/")} `)
         this.printf`${{[Color.SWAMP_GREEN]: "$"}} `
-        this.awaitInput()
+        if (!isMobile) {
+            this.awaitInput()
+        }
         terminal.save()
     }
 
@@ -523,12 +525,28 @@ let helloWorld = terminal.addFunction("helloworld", function() {
 
 async function main() {
     if (isMobile) {
-        terminal.parentNode.classList.add("mobile")
-        terminal.buttonsNode.classList.add("mobile")
+        document.querySelectorAll("*").forEach(e => {
+            e.classList.add("mobile")
+        })
+        document.querySelector("#terminal-input").focus()
     }
 
     terminal.print("  ")
     helloWorld.run()
+}
+
+document.querySelector("#terminal-input").onkeydown = function(event) {
+    if (event.key == "Enter") {
+        terminal.printLine(this.value)
+        terminal.inputLine(this.value)
+        this.value = ""
+    }
+    setTimeout(function() {
+        terminal.parentNode.scrollTo({
+            top: terminal.parentNode.scrollHeight,
+            behavior: "smooth"
+        })
+    }, 10)
 }
 
 main()
