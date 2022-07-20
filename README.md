@@ -74,8 +74,9 @@ The following list can also be viewed using the `whatis *` command
 | `cpp         ` | my evaluation of cpp (programming language)                     |
 | `csharp      ` | my evaluation of csharp (programming language)                  |
 | `css         ` | my evaluation of css (programming language)                     |
-| `curl        ` | download a file                                                 |
+| `curl        ` | download a file from the internet                               |
 | `dir         ` | list the files in the current directory                         |
+| `download    ` | download a local file                                           |
 | `echo        ` | print whatever you type                                         |
 | `edit        ` | edit a file of the current directory                            |
 | `eval        ` | evaluate a javascript expression                                |
