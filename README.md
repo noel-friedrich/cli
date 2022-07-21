@@ -137,6 +137,7 @@ The following list can also be viewed using the `whatis *` command
 | `sudo        ` | execute a command as root                                       |
 | `swift       ` | my evaluation of swift (programming language)                   |
 | `tac         ` | tnetnoc elif daer                                               |
+| `todo        ` | manage todo lists                                               |
 | `top         ` | display the top processes                                       |
 | `touch       ` | create a file in the current directory                          |
 | `uname       ` | display the name of the operating system                        |
