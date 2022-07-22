@@ -1914,3 +1914,96 @@ terminal.addFunction("todo", async function(rawArgs) {
 
     await commands[command](...args)
 }, "manage todo lists")
+
+terminal.addFunction("morse", function(rawArgs) {
+    function mostPopularChar(string) {
+        string = string.toLowerCase().trim()
+        let occurences = {}
+        for (let char of string) {
+            if (!"abcdefghijklmnopqrstuvwxyz.-".includes(char))
+                continue
+            if (char in occurences) {
+                occurences[char]++
+            } else {
+                occurences[char] = 1
+            }
+        }
+        let mostPopularC = null
+        let mostOccurences = 0
+        for (let [char, count] of Object.entries(occurences)) {
+            if (count > mostOccurences) {
+                mostOccurences = count
+                mostPopularC = char
+            }
+        }
+        return mostPopularC
+    }
+    
+    
+    MORSE = {
+        A: ".-", B: "-...", C: "-.-.",
+        D: "-..", E: ".", F: "..-.",
+        G: "--.", H: "....", I: "..",
+        J: ".---", K: "-.-", L: ".-..",
+        M: "--.", N: "-.", O: "---",
+        P: ".--.", Q: "--.-", R: ".-.",
+        S: "...", T: "-", U: "..-",
+        V: "...-", W: ".--", X: "-..-",
+        Y: "-.--", Z: "--..",
+        "0": "----", "1": ".----",
+        "2": "..---", "3": "...--",
+        "4": "....-", "5": ".....",
+        "6": "-....", "7": "--...",
+        "8": "---..", "9": "----.",
+        ".": ".-.-.-", ",": "--..--",
+        "?": "..--..", "'": ".----.",
+        "!": "-.-.--", "/": "-..-.",
+        "(": "-.--.", ")": "-.--.-",
+        "&": ".-...", ":": "---...",
+        ";": "-.-.-.", "=": "-...-",
+        "+": ".-.-.", "-": "-....-",
+        "_": "..--.-", '"': ".-..-.",
+        "$": "...-..-", "@": ".--.-."
+    }
+    let text = rawArgs.trim().toUpperCase()
+    const noinput = () => terminal.printf`${{[Color.RED]: "Error"}}: No input-text given!\n`
+    if ([".", "-"].includes(mostPopularChar(text))) {
+        text += " "
+        let tempLine = ""
+        let tempChar = ""
+        for (let char of text) {
+            tempChar += char
+            if (char == " ") {
+                for (let [morseChar, morseCode] of Object.entries(MORSE)) {
+                    if (tempChar.trim() == morseCode) {
+                        tempLine += morseChar
+                        tempChar = ""
+                    }
+                }
+                tempLine += tempChar
+                tempChar = ""
+            }
+            if (tempLine.length > 40) {
+                terminal.printLine(tempLine)
+                tempLine = ""
+            }
+        }
+        if (tempLine) terminal.printLine(tempLine)
+        if (!text) noinput()
+    } else {
+        let tempLine = ""
+        for (let char of text) {
+            if (char in MORSE) {
+                tempLine += `${MORSE[char]} `
+            } else {
+                tempLine += char
+            }
+            if (tempLine.length >= 40) {
+                terminal.printLine(tempLine)
+                tempLine = ""
+            }
+        }
+        if (tempLine) terminal.printLine(tempLine)
+        if (!text) noinput()
+    }
+}, "translate latin to morse or morse to latin")
