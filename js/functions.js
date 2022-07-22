@@ -2007,3 +2007,26 @@ terminal.addFunction("morse", function(rawArgs) {
         if (!text) noinput()
     }
 }, "translate latin to morse or morse to latin")
+
+terminal.addFunction("fizzbuzz", function(rawArgs) {
+    let maxNum = 50
+    if (rawArgs.trim().length > 0) {
+        if (!isNaN(rawArgs.trim())) {
+            maxNum = parseInt(rawArgs)
+        } else {
+            terminal.printf`${{[Color.RED]: "Error"}}: Invalid Max!\n`
+            return
+        }
+    }
+    if (maxNum < 3 || maxNum > 1000) {
+        terminal.printf`${{[Color.RED]: "Error"}}: Invalid Max!\n`
+        return
+    }
+    for (let i = 1; i <= maxNum; i++) {
+        let outs = ""
+        if (i % 3 == 0) outs += "fizz"
+        if (i % 5 == 0) outs += "buzz"
+        if (outs == "") outs += i
+        terminal.printLine(outs)
+    }
+}, "do the fizzbuzz")
