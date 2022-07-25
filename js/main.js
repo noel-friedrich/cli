@@ -133,6 +133,47 @@ function extractNamedArgs(argStr) {
     return namedArgs
 }
 
+let TERMINAL_SLEEPING = false
+let STRG_C_PRESSED = false
+
+document.addEventListener("keydown", function(e) {
+    if (e.key == "c" && e.ctrlKey && TERMINAL_SLEEPING) {
+        STRG_C_PRESSED = true
+    }
+})
+
+async function sleep(ms) {
+    function abort() {
+        terminal.printf`\n${{[Color.RED]: "Aborted. [^c]"}}\n`
+    }
+
+    return new Promise(async resolve => {
+        TERMINAL_SLEEPING = true
+        let HANDLED_STRG_C = false
+        let intervalFunc = setInterval(function() {
+            if (STRG_C_PRESSED) {
+                HANDLED_STRG_C = true
+                abort()
+                terminal.finishFunction()
+                STRG_C_PRESSED = false
+            }
+        }, 50)
+        setTimeout(function() {
+            clearInterval(intervalFunc)
+            if (HANDLED_STRG_C)
+                return
+            TERMINAL_SLEEPING = false
+            if (STRG_C_PRESSED) {
+                STRG_C_PRESSED = false
+                abort()
+                terminal.finishFunction()
+            } else {
+                resolve()
+            }
+        }, ms)
+    })
+}
+
 function getFolder(path) {
     let currFolder = FILE_SYSTEM
     let incorrectPath = "home"
@@ -291,6 +332,23 @@ class Terminal {
         return terminalFunc
     }
 
+    async prompt(msg=null) {
+        return new Promise(async resolve => {
+            if (msg != null) {
+                terminal.print(msg)
+            }
+            let inputElement = this.makeInput()
+            inputElement.onkeydown = function(event) {
+                if (event.key == "Enter") {
+                    inputElement.remove()
+                    let value = inputElement.value
+                    terminal.printLine(value)
+                    resolve(value)
+                }
+            }
+        })
+    }
+
     getFunction(name) {
         return this.functions.find(f => f.name == name)
     }
@@ -359,7 +417,7 @@ class Terminal {
         terminal.save()
     }
 
-    awaitInput(configure=true) {
+    makeInput() {
         let inputElement = document.createElement("input")
         this.parentNode.appendChild(inputElement)
         let rect = inputElement.getBoundingClientRect()
@@ -367,6 +425,11 @@ class Terminal {
         setTimeout(() => inputElement.focus(), 300)
         inputElement.scrollIntoView({behavior: "smooth"})
         this.currInput = inputElement
+        return inputElement
+    }
+
+    awaitInput(configure=true) {
+        let inputElement = this.makeInput()
 
         if (!configure) return
 
