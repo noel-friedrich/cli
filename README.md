@@ -47,106 +47,109 @@ The following list can also be viewed using the `whatis *` command
 
 | Command      | Description                                                     |
 | ------------ | --------------------------------------------------------------- |
-| `!           ` | alias for 'runfunc'                                             |
-| `./          ` | alias for 'run'                                                 |
-| `<           ` | alias for 'cat'                                                 |
-| `alias       ` | create a new alias for a given function                         |
-| `apt         ` | apititude package manager                                       |
-| `apt-get     ` | apititude package manager                                       |
-| `background  ` | change the background color of the terminal                     |
-| `bc          ` | compute the value of a mathematical expression                  |
-| `bf          ` | parse given brainfuck code                                      |
-| `brainfuck   ` | parse given brainfuck code                                      |
-| `c           ` | my evaluation of c (programming language)                       |
-| `c#          ` | my evaluation of c# (programming language)                      |
-| `c++         ` | my evaluation of c++ (programming language)                     |
-| `cal         ` | display the calendar of the current month                       |
-| `cat         ` | read file content                                               |
-| `cd          ` | change current directory                                        |
-| `clear       ` | clear terminal window                                           |
-| `cmatrix     ` | feel cool, be hacker                                            |
-| `cmdnotfound ` | undefined                                                       |
-| `color       ` | display styling options for the terminal                        |
-| `color-test  ` | test the color functionality                                    |
-| `cowsay      ` | let the cow say something                                       |
-| `cowthink    ` | let the cow think something                                     |
-| `cp          ` | duplicate a file of the current directory to another directory  |
-| `cpp         ` | my evaluation of cpp (programming language)                     |
-| `csharp      ` | my evaluation of csharp (programming language)                  |
-| `css         ` | my evaluation of css (programming language)                     |
-| `curl        ` | download a file from the internet                               |
-| `dir         ` | list the files in the current directory                         |
-| `download    ` | download a local file                                           |
-| `echo        ` | print whatever you type                                         |
-| `edit        ` | edit a file of the current directory                            |
-| `eval        ` | evaluate a javascript expression                                |
-| `exit        ` | exit the terminal                                               |
-| `f           ` | display the friendship-score of a friend                        |
-| `factor      ` | calculate the prime factors of a given number                   |
-| `foreground  ` | change the foreground color of the terminal                     |
-| `get         ` | get a value from the server                                     |
-| `go          ` | my evaluation of go (programming language)                      |
-| `groups      ` | display the groups of a user                                    |
-| `haskell     ` | my evaluation of haskell (programming language)                 |
-| `head        ` | display the first lines of a file                               |
-| `helloworld  ` | undefined                                                       |
-| `help        ` | show this help menu                                             |
-| `hi          ` | say hello to the terminal                                       |
-| `history     ` | undefined                                                       |
-| `hs          ` | my evaluation of hs (programming language)                      |
-| `html        ` | my evaluation of html (programming language)                    |
-| `img2ascii   ` | image to ascii converter                                        |
-| `java        ` | my evaluation of java (programming language)                    |
-| `javascript  ` | my evaluation of javascript (programming language)              |
-| `js          ` | my evaluation of js (programming language)                      |
-| `jsx         ` | my evaluation of jsx (programming language)                     |
-| `kill        ` | kill a process                                                  |
-| `kotlin      ` | my evaluation of kotlin (programming language)                  |
-| `ls          ` | list all files of current directory                             |
-| `lscmds      ` | list all existing commands                                      |
-| `lscpu       ` | get some helpful info about your cpu                            |
-| `lsusb       ` | list all USB devices                                            |
-| `lua         ` | my evaluation of lua (programming language)                     |
-| `mkdir       ` | create a new directory                                          |
-| `mv          ` | move a file to a different directory                            |
-| `nano        ` | open nano editor                                                |
-| `open        ` | alias for 'cat'                                                 |
-| `password    ` | generate a new random password                                  |
-| `php         ` | my evaluation of php (programming language)                     |
-| `plot        ` | plot a mathematical function within bounds                      |
-| `pwd         ` | display the current working directory                           |
-| `py          ` | my evaluation of py (programming language)                      |
-| `python      ` | my evaluation of python (programming language)                  |
-| `python2     ` | my evaluation of python2 (programming language)                 |
-| `python3     ` | my evaluation of python3 (programming language)                 |
-| `reboot      ` | reboot the website                                              |
-| `reset       ` | reset everything                                                |
-| `reverse     ` | reverse a message                                               |
-| `rm          ` | delete a file of the current directory                          |
-| `rmdir       ` | delete a directory including all its contents                   |
-| `ruby        ` | my evaluation of ruby (programming language)                    |
-| `run         ` | run a .exe file                                                 |
-| `runfunc     ` | run a function of 'history'                                     |
-| `rust        ` | my evaluation of rust (programming language)                    |
-| `set         ` | set a value on the server                                       |
-| `shutdown    ` | shutdown the website... or not?                                 |
-| `sleep       ` | undefined                                                       |
-| `solve       ` | solve a mathematical equation for x                             |
-| `sort        ` | display a file in sorted order                                  |
-| `style       ` | alias for 'color'                                               |
-| `sudo        ` | execute a command as root                                       |
-| `swift       ` | my evaluation of swift (programming language)                   |
-| `tac         ` | tnetnoc elif daer                                               |
-| `todo        ` | manage todo lists                                               |
-| `top         ` | display the top processes                                       |
-| `touch       ` | create a file in the current directory                          |
-| `uname       ` | display the name of the operating system                        |
-| `w           ` | show the active users and their time elapsed                    |
-| `wc          ` | display word and line count of file                             |
-| `whatis      ` | get a short description of a command                            |
-| `whoami      ` | get your current username                                       |
-| `yes         ` | repeat a message until you press Ctrl+C                         |
-| `zip         ` | zip a file                                                      |
+| `!`           | undefined                                          |
+| `./`          | show this help menu                                |
+| `<`           | undefined                                          |
+| `alias`       | list all files of current directory                |
+| `apt`         | change current directory                           |
+| `apt-get`     | read file content                                  |
+| `background`  | alias for 'cat'                                    |
+| `bc`          | tnetnoc elif daer                                  |
+| `bf`          | display a file in sorted order                     |
+| `brainfuck`   | display word and line count of file                |
+| `c`           | get your current username                          |
+| `c#`          | evaluate a javascript expression                   |
+| `c++`         | alias for 'run'                                    |
+| `cal`         | run a .exe file                                    |
+| `cat`         | alias for 'cat'                                    |
+| `cd`          | print whatever you type                            |
+| `ceasar`      | create a new directory                             |
+| `clear`       | duplicate a file to another folder                 |
+| `cmatrix`     | move a file to a different directory               |
+| `cmdnotfound` | delete a directory including all its contents      |
+| `color`       | delete a file of the current directory             |
+| `color-test`  | download a file from the internet                  |
+| `cowsay`      | edit a file of the current directory               |
+| `cowthink`    | create a file in the current directory             |
+| `cp`          | list all USB devices                               |
+| `cpp`         | exit the terminal                                  |
+| `csharp`      | test the color functionality                       |
+| `css`         | display styling options for the terminal           |
+| `curl`        | alias for 'color'                                  |
+| `dir`         | my evaluation of py (programming language)         |
+| `download`    | my evaluation of python2 (programming language)    |
+| `echo`        | my evaluation of java (programming language)       |
+| `edit`        | my evaluation of ruby (programming language)       |
+| `eval`        | my evaluation of html (programming language)       |
+| `exit`        | my evaluation of css (programming language)        |
+| `f`           | my evaluation of js (programming language)         |
+| `factor`      | my evaluation of javascript (programming language) |
+| `fizzbuzz`    | my evaluation of jsx (programming language)        |
+| `foreground`  | my evaluation of php (programming language)        |
+| `get`         | my evaluation of lua (programming language)        |
+| `go`          | my evaluation of go (programming language)         |
+| `groups`      | my evaluation of c (programming language)          |
+| `haskell`     | my evaluation of c++ (programming language)        |
+| `head`        | my evaluation of c# (programming language)         |
+| `helloworld`  | my evaluation of kotlin (programming language)     |
+| `help`        | my evaluation of swift (programming language)      |
+| `hi`          | my evaluation of rust (programming language)       |
+| `history`     | my evaluation of hs (programming language)         |
+| `hs`          | my evaluation of python (programming language)     |
+| `html`        | my evaluation of python3 (programming language)    |
+| `img2ascii`   | my evaluation of csharp (programming language)     |
+| `java`        | my evaluation of cpp (programming language)        |
+| `javascript`  | my evaluation of haskell (programming language)    |
+| `js`          | display the top processes                          |
+| `jsx`         | clear terminal window                              |
+| `kill`        | execute a command as root                          |
+| `kotlin`      | display the friendship-score of a friend           |
+| `ls`          | apititude package manager                          |
+| `lscmds`      | apititude package manager                          |
+| `lscpu`       | parse given brainfuck code                         |
+| `lsusb`       | parse given brainfuck code                         |
+| `lua`         | create a new alias for a given function            |
+| `mkdir`       | list all existing commands                         |
+| `morse`       | shutdown the website... or not?                    |
+| `mv`          | reboot the website                                 |
+| `nano`        | reset everything                                   |
+| `open`        | open nano editor                                   |
+| `password`    | generate a new random password                     |
+| `php`         | image to ascii converter                           |
+| `plot`        | solve a mathematical equation for x                |
+| `pwd`         | plot a mathematical function within bounds         |
+| `py`          | change the background color of the terminal        |
+| `python`      | change the foreground color of the terminal        |
+| `python2`     | say hello to the terminal                          |
+| `python3`     | display the calendar of the current month          |
+| `reboot`      | compute the value of a mathematical expression     |
+| `reset`       | display the current working directory              |
+| `reverse`     | display the name of the operating system           |
+| `rm`          | calculate the prime factors of a given number      |
+| `rmdir`       | get a value from the server                        |
+| `ruby`        | set a value on the server                          |
+| `run`         | display the groups of a user                       |
+| `runfunc`     | display the first lines of a file                  |
+| `rust`        | get a short description of a command               |
+| `set`         | show the active users and their time elapsed       |
+| `shutdown`    | undefined                                          |
+| `sleep`       | run a function of 'history'                        |
+| `solve`       | alias for 'runfunc'                                |
+| `sort`        | get some helpful info about your cpu               |
+| `style`       | kill a process                                     |
+| `sudo`        | repeat a message until you press Ctrl+C            |
+| `swift`       | zip a file                                         |
+| `tac`         | list the files in the current directory            |
+| `todo`        | reverse a message                                  |
+| `top`         | undefined                                          |
+| `touch`       | let the cow say something                          |
+| `uname`       | let the cow think something                        |
+| `w`           | feel cool, be hacker                               |
+| `wc`          | download a local file                              |
+| `whatis`      | manage todo lists                                  |
+| `whoami`      | translate latin to morse or morse to latin         |
+| `yes`         | do the fizzbuzz                                    |
+| `zip`         | encrypt a text using the ceasar cipher             |
 
 ## Status
 Project is _IN PROGRESS_
