@@ -65,6 +65,7 @@ The following list can also be viewed using the `whatis *` command
 | `cd`          | change current directory                           |
 | `ceasar`      | encrypt a text using the ceasar cipher             |
 | `clear`       | clear terminal window                              |
+| `clock`       | display the current time                           |
 | `cmatrix`     | feel cool, be hacker                               |
 | `cmdnotfound` | undefined                                          |
 | `color`       | display styling options for the terminal           |
