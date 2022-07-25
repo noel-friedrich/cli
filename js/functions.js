@@ -928,20 +928,23 @@ terminal.addFunction("alias", function(rawArgs) {
     }, `alias for '${command}'`)
 }, "create a new alias for a given function")
 
-terminal.addFunction("lscmds", function(rawArgs) {
+terminal.addFunction("lscmds", async function(rawArgs) {
     let namedArgs = extractNamedArgs(rawArgs)
     if (namedArgs.md) {
         let maxFuncLength = terminal.functions.reduce((p, c) => Math.max(p, c.name.length), 0)
         let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
-        const allDescriptions = terminal.functions.map(f => f.description ? f.description : "undefined")
+        const allDescriptions = functions.map(f => f.description ? f.description : "undefined")
         let maxDescLength = allDescriptions.reduce((p, c) => Math.max(p, c.length), 0)
+        let text = ""
         for (let i = 0; i < functions.length; i++) {
             let func = functions[i]
             let description = allDescriptions[i]
             let funcPart = stringPadBack("\`" + func.name + "\`", maxFuncLength + 2)
             let descpart = stringPadBack(description, maxDescLength)
-            terminal.printLine(`| ${funcPart} | ${descpart} |`)
+            text += `| ${funcPart} | ${descpart} |\n` 
         }
+        terminal.printLine(text)
+        await navigator.clipboard.writeText(text)
         return
     }
 
@@ -2092,3 +2095,60 @@ terminal.addFunction("ceasar", function(rawArgs, funcInfo) {
     }
     terminal.printLine()
 }, "encrypt a text using the ceasar cipher")
+
+terminal.addFunction("clock", function() {
+    let gridSize = {
+        x: 40,
+        y: 20
+    }
+    let grid = Array.from(Array(gridSize.y)).map(() => Array(gridSize.x).fill(" "))
+    function printGrid() {
+        const customColors = {
+            "x": Color.YELLOW,
+            "#": Color.WHITE,
+            "w": Color.ORANGE,
+            ".": Color.rgb(50, 50, 50)
+        }
+        for (let row of grid) {
+            for (let item of row) {
+                if (Object.keys(customColors).includes(item)) {
+                    terminal.printf`${{[customColors[item]]: item}}`
+                } else {
+                    terminal.print(item)
+                }
+            }
+            terminal.printLine()
+        }
+    }
+    function drawIntoGrid(x, y, v) {
+        let gridX = Math.round((x - -1) / (1 - -1) * (gridSize.x - 1))
+        let gridY = Math.round((y - -1) / (1 - -1) * (gridSize.y - 1))
+        if (gridX < 0 || gridX >= gridSize.x || gridY < 0 || gridY >= gridSize.y) {
+            return
+        }
+        grid[gridSize.y - 1 - gridY][gridX] = v
+    }
+    function drawCircle(val, radius=1) {
+        for (let t = 0; t < Math.PI * 2; t += 0.01) {
+            let x = Math.sin(t) * radius
+            let y = Math.cos(t) * radius
+            drawIntoGrid(x, y, val)
+        }
+    }
+    function drawLine(angle, val, maxVal=1) {
+        for (let t = 0; t < maxVal; t += 0.01) {
+            let x = Math.sin(angle * Math.PI * 2) * t
+            let y = Math.cos(angle * Math.PI * 2) * t
+            drawIntoGrid(x, y, val)
+        }
+    }
+    let date = new Date()
+    let mins = date.getHours() * 60 + date.getMinutes()
+    for (let r = 0; r < 1; r += 0.05) {
+        drawCircle(".", r)
+    }
+    drawCircle("#")
+    drawLine((mins % 720) / 720, "w", 0.8)
+    drawLine(date.getMinutes() / 60, "x", 0.9)
+    printGrid()
+}, "display the current time")
