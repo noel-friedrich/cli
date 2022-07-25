@@ -741,14 +741,6 @@ terminal.addFunction("f", function(rawArgs) {
     terminal.printf`Friendship-Score with ${{[Color.ORANGE]: friendName}}: ${{[Color.YELLOW]: String(friendScore) + "/10"}}\n`
 }, "display the friendship-score of a friend")
 
-async function sleep(ms) {
-    return new Promise(async (resolve) => {
-        setTimeout(function() {
-            resolve()
-        }, ms)
-    })
-}
-
 let aptFunc = async function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs)
     if (parsedArgs.length == 0) {
@@ -937,6 +929,22 @@ terminal.addFunction("alias", function(rawArgs) {
 }, "create a new alias for a given function")
 
 terminal.addFunction("lscmds", function(rawArgs) {
+    let namedArgs = extractNamedArgs(rawArgs)
+    if (namedArgs.md) {
+        let maxFuncLength = terminal.functions.reduce((p, c) => Math.max(p, c.name.length), 0)
+        let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
+        const allDescriptions = terminal.functions.map(f => f.description ? f.description : "undefined")
+        let maxDescLength = allDescriptions.reduce((p, c) => Math.max(p, c.length), 0)
+        for (let i = 0; i < functions.length; i++) {
+            let func = functions[i]
+            let description = allDescriptions[i]
+            let funcPart = stringPadBack("\`" + func.name + "\`", maxFuncLength + 2)
+            let descpart = stringPadBack(description, maxDescLength)
+            terminal.printLine(`| ${funcPart} | ${descpart} |`)
+        }
+        return
+    }
+
     let tempLine = ""
     for (let terminalFunc of terminal.functions) {
         tempLine += terminalFunc.name
@@ -1343,7 +1351,6 @@ terminal.addFunction("plot", async function(argString) {
             terminal.printLine()
         }
     }
-    console.log(equation)
     for (let y = viewBound.y.min; y <= viewBound.y.max; y += (viewBound.y.max - viewBound.y.min) / (gridSize.y - 1)) {
         drawIntoGrid(0, y, "|")
     }
@@ -1351,6 +1358,21 @@ terminal.addFunction("plot", async function(argString) {
         drawIntoGrid(x, 0, "-")
     }
     drawIntoGrid(0, 0, "+")
+
+    let f = new Function("x", "return " + equation)
+    function slope(f, x, accuracy=0.01) {
+        let minY = f(x - accuracy)
+        let maxY = f(x + accuracy)
+        let diff = maxY - minY
+        return diff / (accuracy * 2)
+    }
+    const symbols = [
+        ["|", 10],
+        ["/", 1.5],
+        ["#", -1.5],
+        ["\\", -10],
+        ["|", -Infinity],
+    ]
     for (let x = viewBound.x.min; x <= viewBound.x.max; x += (viewBound.x.max - viewBound.x.min) / (gridSize.x - 1) / 5) {
         jsEnv.setValue("x", x)
         let [y, error] = jsEnv.eval(equation)
@@ -1358,7 +1380,15 @@ terminal.addFunction("plot", async function(argString) {
             terminal.printf`${{[Color.RED]: "Error"}}: ${{[Color.WHITE]: error}}\n`
             return
         } else {
-            drawIntoGrid(x, y, "#")
+            let printSymbol = null
+            let slopeVal = slope(f, x)
+            for (let [symbol, minVal] of symbols) {
+                if (slopeVal > minVal) {
+                    printSymbol = symbol
+                    break
+                }
+            }
+            drawIntoGrid(x, y, printSymbol)
         }
     }
     await drawGrid()
@@ -1969,7 +1999,7 @@ terminal.addFunction("morse", function(rawArgs) {
     const noinput = () => terminal.printf`${{[Color.RED]: "Error"}}: No input-text given!\n`
     if ([".", "-"].includes(mostPopularChar(text))) {
         text += " "
-        let tempLine = ""
+        let tempLine = "" 
         let tempChar = ""
         for (let char of text) {
             tempChar += char
@@ -1995,6 +2025,9 @@ terminal.addFunction("morse", function(rawArgs) {
         for (let char of text) {
             if (char in MORSE) {
                 tempLine += `${MORSE[char]} `
+            } else if (char == " ") {
+                terminal.printLine(tempLine)
+                tempLine = ""
             } else {
                 tempLine += char
             }
@@ -2030,3 +2063,32 @@ terminal.addFunction("fizzbuzz", function(rawArgs) {
         terminal.printLine(outs)
     }
 }, "do the fizzbuzz")
+
+terminal.addFunction("ceasar", function(rawArgs, funcInfo) {
+    let args = parseArgs(rawArgs, false)
+    if (args.length != 2) {
+        terminal.printLine(`You must supply 2 arguments:`)
+        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} ceasar ${{[Color.YELLOW]: "<text> <shift-num>"}}'\n`
+        return
+    }
+    let [text, maybeShiftVal] = args
+    let shiftVal = 1
+    if (!isNaN(maybeShiftVal.trim())) {
+        shiftVal = parseInt(maybeShiftVal.trim())
+    }
+    let alphabet = "abcdefghijklmnopqrstuvwxyz"
+    function betterMod(n, m) {
+        while (n < 0) n += m
+        return n % m
+    }
+    for (let char of text.toLowerCase()) {
+        let index = alphabet.indexOf(char)
+        if (index == -1) {
+            terminal.print(char)
+            continue
+        }
+        let newChar = alphabet[betterMod((index + shiftVal), alphabet.length)]
+        terminal.print(newChar)
+    }
+    terminal.printLine()
+}, "encrypt a text using the ceasar cipher")
