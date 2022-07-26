@@ -1477,7 +1477,17 @@ terminal.addFunction("cal", async function() {
     printTable()
 }, "display the calendar of the current month")
 
-terminal.addFunction("bc", () => terminal.printf`Just use ${{[Color.YELLOW]: "eval"}}\n`, "compute the value of a mathematical expression")
+terminal.addFunction("bc", async function() {
+    while (true) {
+        let text = await terminal.prompt()
+        let [result, error] = evalJsEnv.eval(text)
+        if (error) {
+            terminal.printf`${{[Color.rgb(38, 255, 38)]: ">"}} ${{[Color.WHITE]: error}}\n`
+        } else if (result !== null) {
+            terminal.printf`${{[Color.rgb(38, 255, 38)]: ">"}} ${{[Color.WHITE]: String(result)}}\n`
+        }
+    }
+}, "compute the value of a mathematical expression")
 
 terminal.addFunction("pwd", function() {
     terminal.printLine("/" + terminal.pathAsStr)
@@ -1487,15 +1497,7 @@ terminal.addFunction("uname", function() {
     terminal.printLine("Website")
 }, "display the name of the operating system")
 
-terminal.addFunction("factor", function(rawArgs, funcInfo) {
-    let argument = getSingleArg(rawArgs, funcInfo.funcName, "number")
-    if (argument == undefined) return
-    let num = parseInt(argument)
-    if (isNaN(num)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Argument must be valid number\n`
-        return
-    }
-
+terminal.addFunction("factor", async function() {
     function primeFactors(n) {
         let i = 2
         let factors = []
@@ -1513,10 +1515,19 @@ terminal.addFunction("factor", function(rawArgs, funcInfo) {
         return factors
     }
 
-    let factors = primeFactors(num).join(" ")
-    console.log(factors)
-    terminal.printf`${{[Color.WHITE]: num}}: ${{[Color.YELLOW]: factors}}\n`
-}, "calculate the prime factors of a given number")
+    while (true) {
+        let text = await terminal.prompt()
+        for (let word of text.trim().split(" ").map(w => w.trim()).filter(w => w.length > 0)) {
+            if (word.length == 0 || isNaN(word)) {
+                terminal.printf`${{[Color.WHITE]: word}}: Invalid number!\n`
+            } else {
+                let num = parseArgs(word)
+                let factors = primeFactors(num).join(" ")
+                terminal.printf`${{[Color.WHITE]: num}}: ${{[Color.YELLOW]: factors}}\n`
+            }
+        }
+    }
+}, "calculate the prime factors of given numbers")
 
 class CliApi {
 
@@ -2133,11 +2144,9 @@ terminal.addFunction("clock", async function(rawArgs) {
             "o": Color.LIGHT_GREEN,
             "s": Color.hex("a4a4c7")
         }
+        let prevContainerDiv = containerDiv
         let tempNode = terminal.parentNode
         terminal.parentNode = document.createElement("div")
-        if (containerDiv) {
-            containerDiv.remove()
-        }
         containerDiv = terminal.parentNode
         tempNode.appendChild(containerDiv)
         terminal.printLine()
@@ -2151,6 +2160,7 @@ terminal.addFunction("clock", async function(rawArgs) {
             }
             terminal.printLine()
         }
+        if (prevContainerDiv) prevContainerDiv.remove()
         terminal.parentNode = tempNode
     }
     function drawIntoGrid(x, y, v) {
@@ -2303,3 +2313,35 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
         await alarm()
     }
 }, "start a timer")
+
+terminal.addFunction("bmi", async function() {
+    let mass = await terminal.promptNum("mass in kg: ", {min: 0, max: 1000})
+    let height = await terminal.promptNum("height in meters (e.g. 1.8): ", {min: 0, max: 1000})
+    let bmi = (mass) / (height ** 2)
+    terminal.print("Your BMI is...  ")
+    await sleep(2000)
+    terminal.printLine(bmi)
+
+    let evaluations = [
+        [16.0, "a lot less than usual"],
+        [16.9, "a bit less than usual"],
+        [18.4, "a tiny bit less than usual"],
+        [24.9, "everything is in butter"],
+        [29.9, "a little more than usual"],
+        [34.9, "you're obese. (class 1)"],
+        [39.9, "you're obese. (class 2)"],
+        [Infinity, "you're obese. (class 3)"]
+    ]
+    let evaluation = null
+    for (let [minVal, tempEval] of evaluations) {
+        if (bmi < minVal) {
+            evaluation = tempEval
+            break
+        }
+    }
+    if (evaluation == 0) {
+        evaluation = "superhuman!"
+    }
+    terminal.printLine(`Your diagnosis: ${evaluation}`)
+    terminal.printLine("source: en.wikipedia.org/wiki/Body_mass_index")
+}, "calculate a body-mass-index")
