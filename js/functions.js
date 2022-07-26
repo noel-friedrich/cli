@@ -1948,7 +1948,9 @@ terminal.addFunction("todo", async function(rawArgs) {
     await commands[command](...args)
 }, "manage todo lists")
 
-terminal.addFunction("morse", function(rawArgs) {
+let audioContext = null
+
+terminal.addFunction("morse", async function(rawArgs) {
     function mostPopularChar(string) {
         string = string.toLowerCase().trim()
         let occurences = {}
@@ -1971,7 +1973,6 @@ terminal.addFunction("morse", function(rawArgs) {
         }
         return mostPopularC
     }
-    
     
     MORSE = {
         A: ".-", B: "-...", C: "-.-.",
@@ -2000,6 +2001,11 @@ terminal.addFunction("morse", function(rawArgs) {
     }
     let text = rawArgs.trim().toUpperCase()
     const noinput = () => terminal.printf`${{[Color.RED]: "Error"}}: No input-text given!\n`
+    try {
+        playFrequency(0, 0)
+    } catch {}
+    let audioSpeed = 0.4
+    if (text.length > 30) audioSpeed = 0.1
     if ([".", "-"].includes(mostPopularChar(text))) {
         text += " "
         let tempLine = "" 
@@ -2024,22 +2030,35 @@ terminal.addFunction("morse", function(rawArgs) {
         if (tempLine) terminal.printLine(tempLine)
         if (!text) noinput()
     } else {
-        let tempLine = ""
         for (let char of text) {
             if (char in MORSE) {
-                tempLine += `${MORSE[char]} `
+                let morseCode = `${MORSE[char]}`
+                for (let morseChar of morseCode) {
+                    terminal.print(morseChar)
+                    if (audioContext) {
+                        if (morseChar == ".") {
+                            playFrequency(400, 300 * audioSpeed)
+                            await sleep(600 * audioSpeed)
+                        } else if (morseChar == "-") {
+                            playFrequency(500, 600 * audioSpeed)
+                            await sleep(900 * audioSpeed)
+                        }
+                    }
+                }
+                if (audioContext) {
+                    await sleep(800 * audioSpeed)
+                }
+                terminal.print(" ")
             } else if (char == " ") {
-                terminal.printLine(tempLine)
-                tempLine = ""
+                if (audioContext) {
+                    await sleep(1000 * audioSpeed)
+                }
+                terminal.printLine()
             } else {
-                tempLine += char
-            }
-            if (tempLine.length >= 40) {
-                terminal.printLine(tempLine)
-                tempLine = ""
+                terminal.print(char)
             }
         }
-        if (tempLine) terminal.printLine(tempLine)
+        terminal.printLine()
         if (!text) noinput()
     }
 }, "translate latin to morse or morse to latin")
@@ -2096,29 +2115,43 @@ terminal.addFunction("ceasar", function(rawArgs, funcInfo) {
     terminal.printLine()
 }, "encrypt a text using the ceasar cipher")
 
-terminal.addFunction("clock", function() {
+terminal.addFunction("clock", async function(rawArgs) {
+    let namedArgs = extractNamedArgs(rawArgs)
+    let displayMillis = !!namedArgs.millis
     let gridSize = {
-        x: 40,
+        x: 36,
         y: 20
     }
     let grid = Array.from(Array(gridSize.y)).map(() => Array(gridSize.x).fill(" "))
+    let containerDiv = null
     function printGrid() {
         const customColors = {
             "x": Color.YELLOW,
             "#": Color.WHITE,
             "w": Color.ORANGE,
-            ".": Color.rgb(50, 50, 50)
+            ".": Color.rgb(50, 50, 50),
+            "o": Color.LIGHT_GREEN,
+            "s": Color.hex("a4a4c7")
         }
+        let tempNode = terminal.parentNode
+        terminal.parentNode = document.createElement("div")
+        if (containerDiv) {
+            containerDiv.remove()
+        }
+        containerDiv = terminal.parentNode
+        tempNode.appendChild(containerDiv)
+        terminal.printLine()
         for (let row of grid) {
             for (let item of row) {
                 if (Object.keys(customColors).includes(item)) {
-                    terminal.printf`${{[customColors[item]]: item}}`
+                    terminal.print(item, customColors[item])
                 } else {
                     terminal.print(item)
                 }
             }
             terminal.printLine()
         }
+        terminal.parentNode = tempNode
     }
     function drawIntoGrid(x, y, v) {
         let gridX = Math.round((x - -1) / (1 - -1) * (gridSize.x - 1))
@@ -2142,13 +2175,131 @@ terminal.addFunction("clock", function() {
             drawIntoGrid(x, y, val)
         }
     }
-    let date = new Date()
-    let mins = date.getHours() * 60 + date.getMinutes()
-    for (let r = 0; r < 1; r += 0.05) {
-        drawCircle(".", r)
+    function update() {
+        let date = new Date()
+        let mins = date.getHours() * 60 + date.getMinutes()
+        for (let r = 0; r < 1; r += 0.05) {
+            drawCircle(".", r)
+        }
+        drawCircle("#")
+        if (displayMillis)
+            drawLine(date.getMilliseconds() / 1000, "s", 0.9)
+        drawLine((mins % 720) / 720, "w", 0.75)
+        drawLine(date.getMinutes() / 60, "x", 0.9)
+        drawLine(date.getSeconds() / 60, "o", 0.9)
+        printGrid()
     }
-    drawCircle("#")
-    drawLine((mins % 720) / 720, "w", 0.8)
-    drawLine(date.getMinutes() / 60, "x", 0.9)
-    printGrid()
+    while (true) {
+        update()
+        await sleep(displayMillis ? 40 : 1000)
+    }
 }, "display the current time")
+
+function playFrequency(f, ms, volume=0.5) {
+    if (!audioContext) {
+        audioContext = new(window.AudioContext || window.webkitAudioContext)()
+        if (!audioContext)
+            throw new Error("Audio not supported here")
+    }
+
+    let oscillator = audioContext.createOscillator()
+    oscillator.type = "square"
+    oscillator.frequency.value = f
+
+    let gain = audioContext.createGain()
+    gain.connect(audioContext.destination)
+    gain.gain.value = volume
+
+    oscillator.connect(gain)
+    oscillator.start(audioContext.currentTime)
+
+    oscillator.stop(audioContext.currentTime + ms / 1000)
+}
+
+terminal.addFunction("audiotest", function(rawArgs, funcInfo) {
+    let frequency = getSingleArg(rawArgs, funcInfo.funcName, "frequency")
+    if (!frequency) return
+    if (isNaN(frequency) || frequency < 0 || frequency > 50000) {
+        throw new Error("Invalid frequency!")
+    }
+    playFrequency(frequency, 100)
+}, "test a given audio frequency")
+
+terminal.addFunction("timer", async function(rawArgs, funcInfo) {
+    let words = rawArgs.split(" ").filter(w => w.length > 0)
+    let ms = 0
+    for (let word of words) {
+        if (/^[0-9]+s$/.test(word)) {
+            ms += parseInt(word.slice(0, -1)) * 1000
+        } else if (/^[0-9]+m$/.test(word)) {
+            ms += parseInt(word.slice(0, -1)) * 60 * 1000
+        } else if (/^[0-9]+h$/.test(word)) {
+            ms += parseInt(word.slice(0, -1)) * 60 * 60 * 1000
+        } else {
+            throw new Error(`Invalid time '${word}'`)
+        }
+    }
+    let startTime = Date.now()
+    if (ms == 0) {
+        terminal.printLine("An example time could be: '1h 30m 20s'")
+        throw new Error("Invalid time!")
+    }
+
+    function printStatus(width=50) {
+        terminal.printLine()
+        let status = Math.min((Date.now() - startTime) / ms, 1)
+        let progressbar = stringMul("#", Math.ceil(status * (width - 4)))
+        terminal.printLine("+" + stringMul("-", width - 2) + "+")
+        terminal.printLine(`| ${stringPadBack(progressbar, width - 4)} |`)
+        terminal.printLine("+" + stringMul("-", width - 2) + "+")
+        let secondsDiff = (ms / 1000) - Math.floor((Date.now() - startTime) / 1000)
+        if (secondsDiff < 0) secondsDiff = 0
+        let seconds = Math.ceil(secondsDiff % 60)
+        let minutes = 0
+        while (secondsDiff >= 60) {
+            minutes += 1
+            secondsDiff -= 60
+        }
+        let timeStr = (minutes ? `${minutes}m ` : "") + `${seconds}s left`
+        if (status != 1)
+            terminal.printLine(`${Math.round(status * 100)}% - ${timeStr}`)
+        else
+            terminal.printf`${{[Color.LIGHT_GREEN]: "-- timer finished --"}}\n`
+    }
+
+    async function alarm() {
+        let notes = [
+            [659, 4], [659, 4], [659, 4], [523, 8], [0, 16],
+            [783, 16], [659, 4], [523, 8], [0, 16], [783, 16],
+            [659, 4], [0, 4], [987, 4], [987, 4], [987, 4],
+            [1046, 8], [0, 16], [783, 16], [622, 4], [523, 8],
+            [0, 16], [783, 16], [659, 4]
+        ]
+        for (let i = 0; i < notes.length; i++) {
+            let [f, t] = notes[i]
+            let ms = 256000 / (t * 100)
+            playFrequency(f, ms)
+            await sleep(ms)
+        }
+    }
+
+    let prevTextDiv = null
+    while (Date.now() - startTime < ms) {
+        textDiv = document.createElement("div")
+        terminal.parentNode.appendChild(textDiv)
+        terminal.setTextDiv(textDiv)
+        printStatus()
+        terminal.resetTextDiv()
+        if (prevTextDiv) prevTextDiv.remove()
+        prevTextDiv = textDiv
+        await sleep(1000)
+    }
+    if (prevTextDiv) prevTextDiv.remove()
+    printStatus()
+    try {
+        playFrequency(0, 0)
+    } catch {}
+    if (audioContext) {
+        await alarm()
+    }
+}, "start a timer")
