@@ -50,6 +50,7 @@ The following list can also be viewed using the `whatis *` command
 | `!`           | alias for 'runfunc'                                |
 | `./`          | alias for 'run'                                    |
 | `<`           | alias for 'cat'                                    |
+| `4inarow`     | play a game of 4 in a row (beatable)               |
 | `alias`       | create a new alias for a given function            |
 | `apt`         | apititude package manager                          |
 | `apt-get`     | apititude package manager                          |
@@ -57,6 +58,7 @@ The following list can also be viewed using the `whatis *` command
 | `background`  | change the background color of the terminal        |
 | `bc`          | compute the value of a mathematical expression     |
 | `bf`          | parse given brainfuck code                         |
+| `bmi`         | calculate a body-mass-index                        |
 | `brainfuck`   | parse given brainfuck code                         |
 | `c`           | my evaluation of c (programming language)          |
 | `c#`          | my evaluation of c# (programming language)         |
@@ -65,6 +67,7 @@ The following list can also be viewed using the `whatis *` command
 | `cat`         | read file content                                  |
 | `cd`          | change current directory                           |
 | `ceasar`      | encrypt a text using the ceasar cipher             |
+| `chess`       | play a game of chess (beatable)                    |
 | `clear`       | clear terminal window                              |
 | `clock`       | display the current time                           |
 | `cmatrix`     | feel cool, be hacker                               |
@@ -85,7 +88,7 @@ The following list can also be viewed using the `whatis *` command
 | `eval`        | evaluate a javascript expression                   |
 | `exit`        | exit the terminal                                  |
 | `f`           | display the friendship-score of a friend           |
-| `factor`      | calculate the prime factors of a given number      |
+| `factor`      | calculate the prime factors of given numbers       |
 | `fizzbuzz`    | do the fizzbuzz                                    |
 | `foreground`  | change the foreground color of the terminal        |
 | `get`         | get a value from the server                        |
@@ -111,6 +114,7 @@ The following list can also be viewed using the `whatis *` command
 | `lscpu`       | get some helpful info about your cpu               |
 | `lsusb`       | list all USB devices                               |
 | `lua`         | my evaluation of lua (programming language)        |
+| `mill2player` | play the mill game with 2 players                  |
 | `mkdir`       | create a new directory                             |
 | `morse`       | translate latin to morse or morse to latin         |
 | `mv`          | move a file to a different directory               |
@@ -142,6 +146,7 @@ The following list can also be viewed using the `whatis *` command
 | `sudo`        | execute a command as root                          |
 | `swift`       | my evaluation of swift (programming language)      |
 | `tac`         | tnetnoc elif daer                                  |
+| `tictactoe`   | play a game of tictactoe (beatable)                |
 | `timer`       | start a timer                                      |
 | `todo`        | manage todo lists                                  |
 | `top`         | display the top processes                          |
