@@ -142,18 +142,18 @@ document.addEventListener("keydown", function(e) {
     }
 })
 
-async function sleep(ms) {
-    function abort() {
-        terminal.printf`\n${{[Color.RED]: "Aborted. [^c]"}}\n`
-    }
+function terminalAbort() {
+    terminal.printf`\n${{[Color.RED]: "Aborted. [^c]"}}\n`
+}
 
+async function sleep(ms) {
     return new Promise(async resolve => {
         TERMINAL_SLEEPING = true
         let HANDLED_STRG_C = false
         let intervalFunc = setInterval(function() {
             if (STRG_C_PRESSED) {
                 HANDLED_STRG_C = true
-                abort()
+                terminalAbort()
                 terminal.finishFunction()
                 STRG_C_PRESSED = false
             }
@@ -165,7 +165,7 @@ async function sleep(ms) {
             TERMINAL_SLEEPING = false
             if (STRG_C_PRESSED) {
                 STRG_C_PRESSED = false
-                abort()
+                terminalAbort()
                 terminal.finishFunction()
             } else {
                 resolve()
@@ -333,20 +333,47 @@ class Terminal {
     }
 
     async prompt(msg=null) {
-        return new Promise(async resolve => {
+        return new Promise(async function(resolve) {
             if (msg != null) {
-                terminal.print(msg)
+                this.print(msg)
             }
             let inputElement = this.makeInput()
             inputElement.onkeydown = function(event) {
                 if (event.key == "Enter") {
                     inputElement.remove()
                     let value = inputElement.value
-                    terminal.printLine(value)
-                    resolve(value)
+                    this.printLine(value)
+                    resolve(value.trim())
+                } else if (event.ctrlKey && event.key == "c") {
+                    if (inputElement.value)
+                        this.print(inputElement.value)
+                    inputElement.remove()
+                    terminalAbort()
+                    this.finishFunction()
+                }
+            }.bind(this)
+        }.bind(this))
+    }
+
+    async promptNum(msg=null, options={}) {
+        return new Promise(async function(resolve) {
+            while (true) {
+                let inp = await this.prompt(msg)
+                if (isNaN(inp) || inp.length == 0) {
+                    this.printf`${{[Color.RED]: "Error"}}: You must supply a valid number\n`
+                    continue
+                }
+                let num = parseFloat(inp)
+                if ("min" in options && options.min > num) {
+                    this.printf`${{[Color.RED]: "Error"}}: The number must be larger than ${{[Color.WHITE]: options.min}}\n`
+                } else if ("max" in options && options.max < num) {
+                    this.printf`${{[Color.RED]: "Error"}}: The number must be smaller than ${{[Color.WHITE]: options.max}}\n`
+                } else {
+                    resolve(num)
+                    return
                 }
             }
-        })
+        }.bind(this))
     }
 
     getFunction(name) {
@@ -391,6 +418,15 @@ class Terminal {
                 this.addLineBreak()
         }
         return out
+    }
+
+    setTextDiv(newTextDiv) {
+        this.tempParentNode = this.parentNode
+        this.parentNode = newTextDiv
+    }
+
+    resetTextDiv() {
+        this.parentNode = this.tempParentNode
     }
 
     printLine(message="", color=Color.WHITE, indent=true) {
