@@ -53,6 +53,7 @@ The following list can also be viewed using the `whatis *` command
 | `alias`       | create a new alias for a given function            |
 | `apt`         | apititude package manager                          |
 | `apt-get`     | apititude package manager                          |
+| `audiotest`   | test a given audio frequency                       |
 | `background`  | change the background color of the terminal        |
 | `bc`          | compute the value of a mathematical expression     |
 | `bf`          | parse given brainfuck code                         |
@@ -141,6 +142,7 @@ The following list can also be viewed using the `whatis *` command
 | `sudo`        | execute a command as root                          |
 | `swift`       | my evaluation of swift (programming language)      |
 | `tac`         | tnetnoc elif daer                                  |
+| `timer`       | start a timer                                      |
 | `todo`        | manage todo lists                                  |
 | `top`         | display the top processes                          |
 | `touch`       | create a file in the current directory             |
