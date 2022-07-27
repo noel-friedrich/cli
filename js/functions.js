@@ -2345,3 +2345,73 @@ terminal.addFunction("bmi", async function() {
     terminal.printLine(`Your diagnosis: ${evaluation}`)
     terminal.printLine("source: en.wikipedia.org/wiki/Body_mass_index")
 }, "calculate a body-mass-index")
+
+terminal.addFunction("mandelbrot", async function(rawArgs) {
+    let gridSize = {x: 60, y: 21}
+    gridSize.x = ~~(terminal.approxWidthInChars - 10)
+    
+    let namedArgs = extractNamedArgs(rawArgs)
+    if (namedArgs.w && !isNaN(namedArgs.w) && namedArgs.w.length != 0) {
+        gridSize.x = parseInt(namedArgs.w)
+    }
+    
+    gridSize.y = ~~(gridSize.x * 1 / 3)
+    if (gridSize.y % 2 == 1) gridSize.y++
+
+    if (namedArgs.h && !isNaN(namedArgs.h) && namedArgs.h.length != 0) {
+        gridSize.y = parseInt(namedArgs.h)
+    }
+
+    let plotSize = {xmin: -1.85, xmax: 0.47, ymin: -0.95, ymax: 0.95}
+    let grid = Array.from(Array(gridSize.y)).map(() => Array(gridSize.x).fill(" "))
+
+    let maxIteration = 1000
+
+    function getPixelCoords(px, py) {
+        let xDiff = plotSize.xmax - plotSize.xmin
+        let x = plotSize.xmin + (px / gridSize.x) * xDiff
+        let yDiff = plotSize.ymax - plotSize.ymin
+        let y = plotSize.ymin + (py / gridSize.y) * yDiff
+        return [x, y]
+    }
+
+    function calcPixel(px, py) {
+        let [x0, y0] = getPixelCoords(px, py)
+        let [x, y] = [0.0, 0.0]
+        let i = 0
+        for (; i < maxIteration; i++) {
+            let temp = x**2 - y**2 + x0
+            y = 2*x*y + y0
+            x = temp
+            if ((x**2 + y**2) >= 4)
+                break
+        }
+        if (i == maxIteration)
+            return "#"
+        return "."
+    }
+
+    async function drawGrid() {
+        for (let y = 0; y < gridSize.y; y++) {
+            for (let x = 0; x < gridSize.x; x++) {
+                terminal.print(grid[y][x])
+            }
+            terminal.printLine()
+        }
+    }
+
+    for (let y = 0; y < gridSize.y; y++) {
+        for (let x = 0; x < gridSize.x; x++) {
+            grid[y][x] = calcPixel(x, y)
+        }
+    }
+    drawGrid()
+}, "draw the mandelbrot set")
+
+terminal.addFunction("hidebtns", function() {
+    document.documentElement.style.setProperty("--terminal-btn-display", "none")
+}, "hide the terminal buttons")
+
+terminal.addFunction("unhidebtns", function() {
+    document.documentElement.style.setProperty("--terminal-btn-display", "block")
+}, "unhide the terminal buttons")
