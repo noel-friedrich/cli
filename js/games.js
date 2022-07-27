@@ -122,9 +122,16 @@ terminal.addFunction("tictactoe", async function() {
 
 }, "play a game of tictactoe (beatable)")
 
-terminal.addFunction("4inarow", async function() {
+terminal.addFunction("4inarow", async function(rawArgs) {
     const N = " ", X = "X", O = "O"
     let field = Array.from(Array(6)).map(() => Array(7).fill(N))
+
+    let DEPTH = 5
+
+    if (/^[1-9]$/.test(rawArgs.trim())) {
+        DEPTH = parseInt(rawArgs.trim())
+        terminal.printLine(`Set search-depth to ${DEPTH}`)
+    }
 
     function printField(f=field) {
         const betweenRow = "+---+---+---+---+---+---+---+"
@@ -370,6 +377,11 @@ terminal.addFunction("4inarow", async function() {
         constructor(field) {
             this.field = field
             this.movingColor = O
+            this.lastMoves = []
+        }
+
+        get lastMove() {
+            return this.lastMoves[this.lastMoves.length - 1]
         }
 
         swapColor() {
@@ -379,11 +391,13 @@ terminal.addFunction("4inarow", async function() {
         makeMove(move) {
             putIntoField(move, this.movingColor, this.field)
             this.swapColor()
+            this.lastMoves.push(move)
         }
 
         unmakeMove(move) {
             popUpper(move, this.field)
             this.swapColor()
+            this.lastMoves.pop()
         }
 
         evaluate() {
@@ -392,7 +406,7 @@ terminal.addFunction("4inarow", async function() {
             return evaluation
         }
 
-        getBestMove(depth) {
+        getBestMove(depth, alpha=-Infinity, beta=Infinity) {
             totalEvaluations++
             let evaluation = this.evaluate()
             if (depth == 0 || Math.abs(evaluation) > 10000) {
@@ -401,15 +415,29 @@ terminal.addFunction("4inarow", async function() {
                     score: evaluation
                 }
             }
-            let moves = [0, 1, 2, 3, 4, 5, 6].filter(m => {
-                return rowFree(m, this.field)
-            })
-            let alpha = -Infinity
+
+            
+            let orderedMoves = [3, 4, 2, 5, 1, 6, 0]
+            
+            if (this.lastMove)
+                orderedMoves.sort(function(a, b) {
+                    let diffA = Math.abs(this.lastMove - a)
+                    let diffB = Math.abs(this.lastMove - b)
+                    return diffA - diffB
+                }.bind(this))
+
+            let moves = orderedMoves.filter(m => rowFree(m, this.field))
             let bestMove = null
             for (let move of moves) {
                 this.makeMove(move)
-                let score = -this.getBestMove(depth - 1).score
+                let score = -this.getBestMove(depth - 1, -beta, -alpha).score
                 this.unmakeMove(move)
+                if (score >= beta) {
+                    return {
+                        move: null,
+                        score: beta
+                    }
+                }
                 if (score > alpha) {
                     alpha = score
                     bestMove = move
@@ -432,7 +460,15 @@ terminal.addFunction("4inarow", async function() {
         if (isDraw() || getWinner())
             break
         totalEvaluations = 0
-        let computerMove = new Board(field).getBestMove(5).move
+        let evaluation = new Board(field).getBestMove(DEPTH)
+        let computerMove = evaluation.move
+        let moveScore = ~~evaluation.score
+        terminal.printLine(`(depth=${DEPTH}, eval=${moveScore})`)
+        if (totalEvaluations < 1000)
+            DEPTH += 4
+        else if (totalEvaluations < 10000)
+            DEPTH++
+        console.log(totalEvaluations)
         if (computerMove == null) {
             throw new Error("the computer couldn't decide...")
         }
@@ -537,20 +573,6 @@ terminal.addFunction("mill2player", async function() {
 
     function printField() {
         let lines = "\n"
-        // lines += "#-------------#-------------#"
-        // lines += "|             |             |"
-        // lines += "|    #--------#----------#   |"
-        // lines += "|    |        |          |   |"
-        // lines += "|    |    #----#----#    |   |"
-        // lines += "|    |    |         |    |   |"
-        // lines += "#----#----#         #----#----#"
-        // lines += "|    |    |         |   |   |"
-        // lines += "|    |    #----#----#   |   |"
-        // lines += "|    |        |         |   |"
-        // lines += "|    #--------#---------#   |"
-        // lines += "|             |            |"
-        // lines += "#-------------#------------#"
-
         lines += "#-----------#-----------#\n"
         lines += "|           |           |\n"
         lines += "|   #-------#-------#   |\n"
