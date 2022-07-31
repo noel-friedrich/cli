@@ -40,8 +40,8 @@ The page is build to work like a Unix-Terminal, including:
 * remove your website using `rm *`
 * see your command history using `history`
   * execute a command from your history using `!<index>`
-* spawn turtlo using "turtlo" and watch it do stuff
-* create melodys using the 'melody' editor
+* spawn turtlo using `turtlo` and watch it do stuff
+* create melodys using the `melody` editor
 
 ## Commands
 
