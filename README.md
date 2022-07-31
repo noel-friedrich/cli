@@ -16,6 +16,7 @@ The page is build to work like a Unix-Terminal, including:
 * fun like TAB-autocompletion, `history` or `cmatrix`
 * multiple ways to get rickrolled
 * all changes made are locally saved (using LocalStorage)
+* very cute turtlo
 
 ### fun stuff to try
 
@@ -39,6 +40,8 @@ The page is build to work like a Unix-Terminal, including:
 * remove your website using `rm *`
 * see your command history using `history`
   * execute a command from your history using `!<index>`
+* spawn turtlo using "turtlo" and watch it do stuff
+* create melodys using the 'melody' editor
 
 ## Commands
 
@@ -47,117 +50,132 @@ The following list can also be viewed using the `whatis *` command
 
 | Command      | Description                                                     |
 | ------------ | --------------------------------------------------------------- |
-| `!`           | alias for 'runfunc'                                |
-| `./`          | alias for 'run'                                    |
-| `<`           | alias for 'cat'                                    |
-| `4inarow`     | play a game of 4 in a row (beatable)               |
-| `alias`       | create a new alias for a given function            |
-| `apt`         | apititude package manager                          |
-| `apt-get`     | apititude package manager                          |
-| `audiotest`   | test a given audio frequency                       |
-| `background`  | change the background color of the terminal        |
-| `bc`          | compute the value of a mathematical expression     |
-| `bf`          | parse given brainfuck code                         |
-| `bmi`         | calculate a body-mass-index                        |
-| `brainfuck`   | parse given brainfuck code                         |
-| `c`           | my evaluation of c (programming language)          |
-| `c#`          | my evaluation of c# (programming language)         |
-| `c++`         | my evaluation of c++ (programming language)        |
-| `cal`         | display the calendar of the current month          |
-| `cat`         | read file content                                  |
-| `cd`          | change current directory                           |
-| `ceasar`      | encrypt a text using the ceasar cipher             |
-| `chess`       | play a game of chess (beatable)                    |
-| `clear`       | clear terminal window                              |
-| `clock`       | display the current time                           |
-| `cmatrix`     | feel cool, be hacker                               |
-| `cmdnotfound` | undefined                                          |
-| `color`       | display styling options for the terminal           |
-| `color-test`  | test the color functionality                       |
-| `cowsay`      | let the cow say something                          |
-| `cowthink`    | let the cow think something                        |
-| `cp`          | duplicate a file to another folder                 |
-| `cpp`         | my evaluation of cpp (programming language)        |
-| `csharp`      | my evaluation of csharp (programming language)     |
-| `css`         | my evaluation of css (programming language)        |
-| `curl`        | download a file from the internet                  |
-| `dir`         | list the files in the current directory            |
-| `download`    | download a local file                              |
-| `echo`        | print whatever you type                            |
-| `edit`        | edit a file of the current directory               |
-| `eval`        | evaluate a javascript expression                   |
-| `exit`        | exit the terminal                                  |
-| `f`           | display the friendship-score of a friend           |
-| `factor`      | calculate the prime factors of given numbers       |
-| `fizzbuzz`    | do the fizzbuzz                                    |
-| `foreground`  | change the foreground color of the terminal        |
-| `get`         | get a value from the server                        |
-| `go`          | my evaluation of go (programming language)         |
-| `groups`      | display the groups of a user                       |
-| `haskell`     | my evaluation of haskell (programming language)    |
-| `head`        | display the first lines of a file                  |
-| `helloworld`  | undefined                                          |
-| `help`        | show this help menu                                |
-| `hi`          | say hello to the terminal                          |
-| `history`     | undefined                                          |
-| `hs`          | my evaluation of hs (programming language)         |
-| `html`        | my evaluation of html (programming language)       |
-| `img2ascii`   | image to ascii converter                           |
-| `java`        | my evaluation of java (programming language)       |
-| `javascript`  | my evaluation of javascript (programming language) |
-| `js`          | my evaluation of js (programming language)         |
-| `jsx`         | my evaluation of jsx (programming language)        |
-| `kill`        | kill a process                                     |
-| `kotlin`      | my evaluation of kotlin (programming language)     |
-| `ls`          | list all files of current directory                |
-| `lscmds`      | list all existing commands                         |
-| `lscpu`       | get some helpful info about your cpu               |
-| `lsusb`       | list all USB devices                               |
-| `lua`         | my evaluation of lua (programming language)        |
-| `mill2player` | play the mill game with 2 players                  |
-| `mkdir`       | create a new directory                             |
-| `morse`       | translate latin to morse or morse to latin         |
-| `mv`          | move a file to a different directory               |
-| `nano`        | open nano editor                                   |
-| `open`        | alias for 'cat'                                    |
-| `password`    | generate a new random password                     |
-| `php`         | my evaluation of php (programming language)        |
-| `plot`        | plot a mathematical function within bounds         |
-| `pwd`         | display the current working directory              |
-| `py`          | my evaluation of py (programming language)         |
-| `python`      | my evaluation of python (programming language)     |
-| `python2`     | my evaluation of python2 (programming language)    |
-| `python3`     | my evaluation of python3 (programming language)    |
-| `reboot`      | reboot the website                                 |
-| `reset`       | reset everything                                   |
-| `reverse`     | reverse a message                                  |
-| `rm`          | delete a file of the current directory             |
-| `rmdir`       | delete a directory including all its contents      |
-| `ruby`        | my evaluation of ruby (programming language)       |
-| `run`         | run a .exe file                                    |
-| `runfunc`     | run a function of 'history'                        |
-| `rust`        | my evaluation of rust (programming language)       |
-| `set`         | set a value on the server                          |
-| `shutdown`    | shutdown the website... or not?                    |
-| `sleep`       | undefined                                          |
-| `solve`       | solve a mathematical equation for x                |
-| `sort`        | display a file in sorted order                     |
-| `style`       | alias for 'color'                                  |
-| `sudo`        | execute a command as root                          |
-| `swift`       | my evaluation of swift (programming language)      |
-| `tac`         | tnetnoc elif daer                                  |
-| `tictactoe`   | play a game of tictactoe (beatable)                |
-| `timer`       | start a timer                                      |
-| `todo`        | manage todo lists                                  |
-| `top`         | display the top processes                          |
-| `touch`       | create a file in the current directory             |
-| `uname`       | display the name of the operating system           |
-| `w`           | show the active users and their time elapsed       |
-| `wc`          | display word and line count of file                |
-| `whatis`      | get a short description of a command               |
-| `whoami`      | get your current username                          |
-| `yes`         | repeat a message until you press Ctrl+C            |
-| `zip`         | zip a file                                         |
+| `!`            | alias for 'runfunc'                                |
+| `./`           | alias for 'run'                                    |
+| `<`            | alias for 'cat'                                    |
+| `4inarow`      | play a game of 4 in a row (beatable)               |
+| `alias`        | create a new alias for a given function            |
+| `apt`          | apititude package manager                          |
+| `apt-get`      | apititude package manager                          |
+| `audiotest`    | test a given audio frequency                       |
+| `background`   | change the background color of the terminal        |
+| `bc`           | compute the value of a mathematical expression     |
+| `bf`           | parse given brainfuck code                         |
+| `bmi`          | calculate a body-mass-index                        |
+| `brainfuck`    | parse given brainfuck code                         |
+| `c`            | my evaluation of c (programming language)          |
+| `c#`           | my evaluation of c# (programming language)         |
+| `c++`          | my evaluation of c++ (programming language)        |
+| `cal`          | display the calendar of the current month          |
+| `cat`          | read file content                                  |
+| `cd`           | change current directory                           |
+| `ceasar`       | encrypt a text using the ceasar cipher             |
+| `chess`        | play a game of chess (beatable)                    |
+| `clear`        | clear terminal window                              |
+| `clock`        | display the current time                           |
+| `cmatrix`      | feel cool, be hacker                               |
+| `cmdnotfound`  | undefined                                          |
+| `color`        | display styling options for the terminal           |
+| `color-test`   | test the color functionality                       |
+| `cowsay`       | let the cow say something                          |
+| `cowthink`     | let the cow think something                        |
+| `cp`           | duplicate a file to another folder                 |
+| `cpp`          | my evaluation of cpp (programming language)        |
+| `csharp`       | my evaluation of csharp (programming language)     |
+| `css`          | my evaluation of css (programming language)        |
+| `curl`         | download a file from the internet                  |
+| `dir`          | list the files in the current directory            |
+| `download`     | download a local file                              |
+| `echo`         | print whatever you type                            |
+| `edit`         | edit a file of the current directory               |
+| `eval`         | evaluate a javascript expression                   |
+| `exit`         | exit the terminal                                  |
+| `exportmelody` | export a .melody file to a .mp3 one                |
+| `f`            | display the friendship-score of a friend           |
+| `factor`       | calculate the prime factors of given numbers       |
+| `fizzbuzz`     | do the fizzbuzz                                    |
+| `foreground`   | change the foreground color of the terminal        |
+| `frequency`    | play a given frequency for a given amount of time  |
+| `get`          | get a value from the server                        |
+| `go`           | my evaluation of go (programming language)         |
+| `groups`       | display the groups of a user                       |
+| `haskell`      | my evaluation of haskell (programming language)    |
+| `head`         | display the first lines of a file                  |
+| `helloworld`   | undefined                                          |
+| `help`         | show this help menu                                |
+| `hi`           | say hello to the terminal                          |
+| `hidebtns`     | hide the terminal buttons                          |
+| `history`      | undefined                                          |
+| `hs`           | my evaluation of hs (programming language)         |
+| `html`         | my evaluation of html (programming language)       |
+| `hugeturtlo`   | spawn huge turtlo                                  |
+| `img2ascii`    | image to ascii converter                           |
+| `java`         | my evaluation of java (programming language)       |
+| `javascript`   | my evaluation of javascript (programming language) |
+| `js`           | my evaluation of js (programming language)         |
+| `jsx`          | my evaluation of jsx (programming language)        |
+| `kill`         | kill a process                                     |
+| `kotlin`       | my evaluation of kotlin (programming language)     |
+| `letters`      | draw the input in cool letters                     |
+| `ls`           | list all files of current directory                |
+| `LS`           | alias for 'sl'                                     |
+| `lscmds`       | list all existing commands                         |
+| `lscpu`        | get some helpful info about your cpu               |
+| `lsusb`        | list all USB devices                               |
+| `lua`          | my evaluation of lua (programming language)        |
+| `mandelbrot`   | draw the mandelbrot set                            |
+| `melody`       | open the melody-maker                              |
+| `mill2player`  | play the mill game with 2 players                  |
+| `mkdir`        | create a new directory                             |
+| `morse`        | translate latin to morse or morse to latin         |
+| `mv`           | move a file to a different directory               |
+| `nano`         | open nano editor                                   |
+| `oneko`        | just use turtlo                                    |
+| `open`         | alias for 'cat'                                    |
+| `password`     | generate a new random password                     |
+| `php`          | my evaluation of php (programming language)        |
+| `play`         | play a .melody file                                |
+| `plot`         | plot a mathematical function within bounds         |
+| `pwd`          | display the current working directory              |
+| `py`           | my evaluation of py (programming language)         |
+| `python`       | my evaluation of python (programming language)     |
+| `python2`      | my evaluation of python2 (programming language)    |
+| `python3`      | my evaluation of python3 (programming language)    |
+| `quiz`         | undefined                                          |
+| `reboot`       | reboot the website                                 |
+| `reset`        | reset everything                                   |
+| `reverse`      | reverse a message                                  |
+| `rm`           | delete a file of the current directory             |
+| `rmdir`        | delete a directory including all its contents      |
+| `ruby`         | my evaluation of ruby (programming language)       |
+| `run`          | run a .exe file                                    |
+| `runfunc`      | run a function of 'history'                        |
+| `rust`         | my evaluation of rust (programming language)       |
+| `set`          | set a value on the server                          |
+| `shutdown`     | shutdown the website... or not?                    |
+| `sl`           | steam locomotive                                   |
+| `sleep`        | undefined                                          |
+| `solve`        | solve a mathematical equation for x                |
+| `sort`         | display a file in sorted order                     |
+| `style`        | alias for 'color'                                  |
+| `sudo`         | execute a command as root                          |
+| `swift`        | my evaluation of swift (programming language)      |
+| `tac`          | tnetnoc elif daer                                  |
+| `tictactoe`    | play a game of tictactoe (beatable)                |
+| `timer`        | start a timer                                      |
+| `todo`         | manage todo lists                                  |
+| `top`          | display the top processes                          |
+| `touch`        | create a file in the current directory             |
+| `turtlo`       | spawn turtlo                                       |
+| `uname`        | display the name of the operating system           |
+| `unhidebtns`   | unhide the terminal buttons                        |
+| `upload`       | upload a file                                      |
+| `w`            | show the active users and their time elapsed       |
+| `wc`           | display word and line count of file                |
+| `whatis`       | get a short description of a command               |
+| `whoami`       | get your current username                          |
+| `yes`          | repeat a message until you press Ctrl+C            |
+| `zip`          | zip a file                                         |
 
 ## Status
 Project is _IN PROGRESS_
