@@ -32,6 +32,7 @@ class Color {
     static SWAMP_GREEN = Color.rgb(139, 195, 74)
     static PURPLE = Color.rgb(79, 79, 192)
     static LIGHT_GREEN = Color.rgb(129, 255, 129)
+    static LIGHT_RED = Color.hex("f56a6a")
 }
 
 class TerminalFunction {
@@ -259,6 +260,13 @@ class Terminal {
         }
     }
 
+    scroll(behavior="smooth") {
+        this.parentNode.scrollTo({
+            top: 1000000,
+            behavior: behavior
+        })   
+    }
+
     constructor() {
         this.parentNode.addEventListener("click", function() {
             if (this.currInput != null) {
@@ -423,6 +431,12 @@ class Terminal {
     setTextDiv(newTextDiv) {
         this.tempParentNode = this.parentNode
         this.parentNode = newTextDiv
+    }
+
+    get approxWidthInChars() {
+        let pre = Array.from(document.querySelectorAll("pre")).filter(e => e.textContent == "$")[0]
+        if (!pre) return null
+        return ~~(this.parentNode.clientWidth / pre.offsetWidth * 0.9)
     }
 
     resetTextDiv() {
@@ -614,6 +628,24 @@ class Terminal {
         }
     }
 
+}
+
+function fileExists(fileName) {
+    for (let existingFileName of Object.keys(terminal.currFolder.content)) {
+        if (existingFileName == fileName.toLowerCase()) {
+            return true
+        }
+    }
+    return false
+}
+
+function getFile(fileName) {
+    for (let existingFileName of Object.keys(terminal.currFolder.content)) {
+        if (existingFileName == fileName.toLowerCase()) {
+            return terminal.currFolder.content[existingFileName]
+        }
+    }
+    return null
 }
 
 const terminal = new Terminal()
