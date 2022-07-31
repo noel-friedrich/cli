@@ -104,7 +104,7 @@ let catFunc = function(rawArgs) {
 
     let openFileName = parsedArgs[0]
     for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && (file.type == FileType.READABLE || file.type == FileType.PROGRAM)) {
+        if (fileName == openFileName && (file.type != FileType.FOLDER)) {
             if (fileName == "passwords.json") {
                 setTimeout(function() {
                     window.location.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -428,6 +428,11 @@ terminal.addFunction("rmdir", async function(rawArgs) {
     }
 
     let directoryName = parsedArgs[0]
+
+    if (["melodies", "noel"].includes(directoryName,trim().toLowerCase())) {
+        throw new Error("You may not remove these folders, sorry!")
+        return
+    }
 
     if (directoryName == "*") {
         terminal.printLine(`Okay sure?`)
@@ -1000,6 +1005,56 @@ terminal.addFunction("nano", async function() {
     terminal.printLine("nano isn't installed. You can try 'edit' though")
 }, "open nano editor")
 
+async function fileFromUpload(fileType=null) {
+    return new Promise(async (resolve, reject) => {
+        let input = document.createElement("input")
+        input.setAttribute("type", "file")
+        if (fileType)
+            input.setAttribute("accept", fileType)
+        input.click()
+
+        input.onchange = function(event) {
+            if (!input.value.length) {
+                reject()
+                return
+            }
+            let fileReader = new FileReader()
+            fileReader.onload = function(event) {
+                resolve([input.files[0].name, event.target.result])
+            }
+            fileReader.readAsText(input.files[0])
+        }
+
+        document.body.onfocus = () => {if (!input.value.length) reject()}  
+    })
+}
+
+async function getMP3FromUpload() {
+    return new Promise(async (resolve, reject) => {
+        let input = document.createElement("input")
+        input.setAttribute("type", "file")
+        input.setAttribute("accept", "audio/mpeg3")
+        input.click()
+
+        input.onchange = function(event) {
+            if (!input.value.length) {
+                reject()
+                return
+            }
+            let fileReader = new FileReader()
+            fileReader.onload = function(event) {
+                let audio = document.createElement("audio")
+                audio.src = event.target.result
+                resolve(audio)
+            }
+            fileReader.readAsDataURL(input.files[0])
+        }
+
+        document.body.onfocus = () => {if (!input.value.length) reject()}  
+    })
+}
+
+
 async function getImageFromUpload() {
     return new Promise(async (resolve, reject) => {
         let input = document.createElement("input")
@@ -1157,7 +1212,7 @@ terminal.addFunction("img2ascii", async function() {
 
         resolve()
     })
-}, "image to ascii converter", true)
+}, "image to ascii converter")
 
 function newMathEnv() {
     let jsEnv = new JsEnvironment()
@@ -1195,7 +1250,7 @@ function newMathEnv() {
 }
 
 const sin = Math.sin, cos = Math.cos, tan = Math.tan, sqrt = Math.sqrt, 
-      e = Math.E, pi = Math.PI, exp = Math.exp
+      e = Math.E, pi = Math.PI, exp = Math.exp, abs = Math.abs
 
 terminal.addFunction("solve", async function(argString) {
     let parsedArgs = parseArgs(argString, false)
@@ -1290,7 +1345,8 @@ terminal.addFunction("solve", async function(argString) {
         let solution = String(Math.round(solutions[i] * roundFactor) / roundFactor)
         if (shownSolutions.includes(solution)) continue
         solutionCount++
-        terminal.printf`${{[Color.YELLOW]: String("x" + (solutionCount))}} = ${{[Color.LIGHT_GREEN]: solution}}\n`
+        let xName = `x${solutionCount}`
+        terminal.printf`${{[Color.YELLOW]: xName}} = ${{[Color.LIGHT_GREEN]: solution}}\n`
         shownSolutions.push(solution)
     }
     if (solutions.length == 0) {
@@ -1326,12 +1382,12 @@ terminal.addFunction("plot", async function(argString) {
     let grid = Array.from(Array(gridSize.y)).map(() => Array(gridSize.x).fill(" "))
     let viewBound = {
         x: {
-            min: namedArgs.hasOwnProperty("xmin") ? parseFloat(namedArgs.xmin) : -3,
-            max: namedArgs.hasOwnProperty("xmax") ? parseFloat(namedArgs.xmax) : 3
+            min: namedArgs.hasOwnProperty("xmin") ? parseFloat(namedArgs.xmin) : -Math.PI,
+            max: namedArgs.hasOwnProperty("xmax") ? parseFloat(namedArgs.xmax) :  Math.PI
         },
         y: {
-            min: namedArgs.hasOwnProperty("ymin") ? parseFloat(namedArgs.ymin) : -3,
-            max: namedArgs.hasOwnProperty("ymax") ? parseFloat(namedArgs.ymax) : 3
+            min: namedArgs.hasOwnProperty("ymin") ? parseFloat(namedArgs.ymin) : -Math.PI,
+            max: namedArgs.hasOwnProperty("ymax") ? parseFloat(namedArgs.ymax) :  Math.PI
         }
     }
     if (viewBound.x.min > viewBound.x.max || viewBound.y.min > viewBound.y.max) {
@@ -1339,6 +1395,7 @@ terminal.addFunction("plot", async function(argString) {
         return
     }
     function drawIntoGrid(x, y, v) {
+        if (isNaN(x) || isNaN(y)) return
         let gridX = Math.round((x - viewBound.x.min) / (viewBound.x.max - viewBound.x.min) * (gridSize.x - 1))
         let gridY = Math.round((y - viewBound.y.min) / (viewBound.y.max - viewBound.y.min) * (gridSize.y - 1))
         if (gridX < 0 || gridX >= gridSize.x || gridY < 0 || gridY >= gridSize.y) {
@@ -1349,7 +1406,19 @@ terminal.addFunction("plot", async function(argString) {
     async function drawGrid() {
         for (let y = 0; y < gridSize.y; y++) {
             for (let x = 0; x < gridSize.x; x++) {
-                terminal.print(grid[y][x])
+                let color = Color.WHITE
+                switch(grid[y][x]) {
+                    case ".":
+                        color = Color.rgb(100, 100, 100)
+                        break
+                    case "/":
+                    case "#":
+                    case "\\":
+                    case "]":
+                    case "[":
+                        color = Color.YELLOW
+                }
+                terminal.print(grid[y][x], color)
             }
             terminal.printLine()
         }
@@ -1358,7 +1427,23 @@ terminal.addFunction("plot", async function(argString) {
         drawIntoGrid(0, y, "|")
     }
     for (let x = viewBound.x.min; x <= viewBound.x.max; x += (viewBound.x.max - viewBound.x.min) / (gridSize.x - 1)) {
-        drawIntoGrid(x, 0, "-")
+        drawIntoGrid(x, 0, "~")
+    }
+    for (let x = ~~(viewBound.x.min); x < viewBound.x.max; x++) {
+        let axisVal = (String(x).length > 1) ? String(x).slice(-1) : String(x)
+        for (let y = viewBound.y.min; y <= viewBound.y.max; y += (viewBound.y.max - viewBound.y.min) / (gridSize.y - 1)) {
+            if (x == 0) break
+            drawIntoGrid(x, y, ".")
+        }
+        drawIntoGrid(x, 0, axisVal)
+    }
+    for (let y = ~~(viewBound.y.min); y < viewBound.y.max; y++) {
+        let axisVal = (String(y).length > 1) ? String(y).slice(-1) : String(y)
+        for (let x = viewBound.x.min; x <= viewBound.x.max; x += (viewBound.x.max - viewBound.x.min) / (gridSize.x - 1)) {
+            if (y == 0) break
+            drawIntoGrid(x, y, ".")
+        }
+        drawIntoGrid(0, y, axisVal)
     }
     drawIntoGrid(0, 0, "+")
 
@@ -1370,18 +1455,18 @@ terminal.addFunction("plot", async function(argString) {
         return diff / (accuracy * 2)
     }
     const symbols = [
-        ["|", 10],
+        ["]", 10],
         ["/", 1.5],
         ["#", -1.5],
         ["\\", -10],
-        ["|", -Infinity],
+        ["[", -Infinity],
     ]
+    let yValues = []
     for (let x = viewBound.x.min; x <= viewBound.x.max; x += (viewBound.x.max - viewBound.x.min) / (gridSize.x - 1) / 5) {
         jsEnv.setValue("x", x)
         let [y, error] = jsEnv.eval(equation)
         if (error) {
-            terminal.printf`${{[Color.RED]: "Error"}}: ${{[Color.WHITE]: error}}\n`
-            return
+            throw new Error(error)
         } else {
             let printSymbol = null
             let slopeVal = slope(f, x)
@@ -1391,10 +1476,36 @@ terminal.addFunction("plot", async function(argString) {
                     break
                 }
             }
-            drawIntoGrid(x, y, printSymbol)
+            if (!isNaN(y))
+                yValues.push(y)
+            if (printSymbol != null)
+                drawIntoGrid(x, y, printSymbol)
         }
     }
     await drawGrid()
+    terminal.scroll()
+    let playTime = namedArgs.hasOwnProperty("l") ? (namedArgs.l * 2) : 10000
+    function calcFrequency(y) {
+        let maxFreq = 1000
+        let minFreq = 200
+        let yDiffBound = viewBound.y.max - viewBound.y.min
+        let yDiffMin = y - viewBound.y.min
+        let freqDiff = maxFreq - minFreq
+        let freq = freqDiff * (yDiffMin / yDiffBound)
+        return freq
+    }
+    let frequencies = []
+    for (let y of yValues) {
+        let frequency = calcFrequency(y)
+        frequency = Math.max(50, frequency)
+        frequency = Math.min(20000, frequency)
+        frequencies.push(frequency)
+    }
+    let noteTime = playTime / frequencies.length
+    for (let note of frequencies) {
+        playFrequency(note, noteTime)
+        await sleep(noteTime * 0.5)
+    }
 }, "plot a mathematical function within bounds")
 
 const OG_BACKGROUND_COLOR = "rgb(3, 3, 6)"
@@ -2198,6 +2309,7 @@ terminal.addFunction("clock", async function(rawArgs) {
         drawLine(date.getMinutes() / 60, "x", 0.9)
         drawLine(date.getSeconds() / 60, "o", 0.9)
         printGrid()
+        terminal.scroll("auto")
     }
     while (true) {
         update()
@@ -2205,7 +2317,7 @@ terminal.addFunction("clock", async function(rawArgs) {
     }
 }, "display the current time")
 
-function playFrequency(f, ms, volume=0.5) {
+function playFrequency(f, ms, volume=0.5, destination=null) {
     if (!audioContext) {
         audioContext = new(window.AudioContext || window.webkitAudioContext)()
         if (!audioContext)
@@ -2217,7 +2329,7 @@ function playFrequency(f, ms, volume=0.5) {
     oscillator.frequency.value = f
 
     let gain = audioContext.createGain()
-    gain.connect(audioContext.destination)
+    gain.connect(destination || audioContext.destination)
     gain.gain.value = volume
 
     oscillator.connect(gain)
@@ -2255,6 +2367,27 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
         throw new Error("Invalid time!")
     }
 
+    let notes = [[800, 1], [800, 1], [800, 1], [800, 1]]
+
+    let melodiesFolder = getFolder(["noel", "melodies"])[0].content
+    let melodyNotes = []
+    let i = 0
+    for (let [fileName, file] of Object.entries(melodiesFolder)) {
+        let melodyName = fileName.split(".", 1)[0]
+        try {
+            melodyNotes.push(JSON.parse(file.content))
+            i++
+            terminal.printf`${{[Color.YELLOW]: i}}: ${{[Color.WHITE]: melodyName}}\n`
+        } catch {}
+    }
+
+    if (melodyNotes.length > 0) {
+        let promptMsg = `Which melody do you want to use [1-${melodyNotes.length}]? `
+        let tuneSelection = await terminal.promptNum(promptMsg, {min: 1, max: melodyNotes.length})
+        notes = melodyNotes[tuneSelection - 1]
+    }
+
+
     function printStatus(width=50) {
         terminal.printLine()
         let status = Math.min((Date.now() - startTime) / ms, 1)
@@ -2278,19 +2411,8 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
     }
 
     async function alarm() {
-        let notes = [
-            [659, 4], [659, 4], [659, 4], [523, 8], [0, 16],
-            [783, 16], [659, 4], [523, 8], [0, 16], [783, 16],
-            [659, 4], [0, 4], [987, 4], [987, 4], [987, 4],
-            [1046, 8], [0, 16], [783, 16], [622, 4], [523, 8],
-            [0, 16], [783, 16], [659, 4]
-        ]
-        for (let i = 0; i < notes.length; i++) {
-            let [f, t] = notes[i]
-            let ms = 256000 / (t * 100)
-            playFrequency(f, ms)
-            await sleep(ms)
-        }
+        console.log(notes)
+        await playMelody(notes)
     }
 
     let prevTextDiv = null
@@ -2302,6 +2424,7 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
         terminal.resetTextDiv()
         if (prevTextDiv) prevTextDiv.remove()
         prevTextDiv = textDiv
+        terminal.scroll()
         await sleep(1000)
     }
     if (prevTextDiv) prevTextDiv.remove()
@@ -2415,3 +2538,92 @@ terminal.addFunction("hidebtns", function() {
 terminal.addFunction("unhidebtns", function() {
     document.documentElement.style.setProperty("--terminal-btn-display", "block")
 }, "unhide the terminal buttons")
+
+terminal.addFunction("upload", async function() {
+    try {
+        var [fileName, fileContent] = await fileFromUpload()
+    } catch {
+        throw new Error("File Upload Failed")
+    }
+    let fileType = FileType.READABLE
+    if (fileContent.length > 100000) {
+        throw new Error("File too large!")
+    }
+    if (fileName.endsWith(".melody")) {
+        fileType = FileType.MELODY
+    }
+    if (fileExists(fileName)) {
+        throw new Error("file already exists in folder")
+    }
+    terminal.currFolder.content[fileName] = new FileElement(fileType, fileContent, {})
+    terminal.printLine("success")
+}, "upload a file")
+
+terminal.addFunction("letters", function(rawArgs) {
+    let text = rawArgs.trim().toLowerCase()
+
+    if (!text)
+        throw new Error("No text given")
+
+    for (let char of text) {
+        if (!(char in AsciiArtLetters)) {
+            throw new Error("Unsupported character used ('" + char + "')")
+        }
+    }
+
+    function pasteHorizontal(a, b, l1, l2) {
+        let lines = {a: a.split("\n").slice(0, -1), b: b.split("\n").slice(0, -1)}
+        let width = {a: () => lines.a[0].length, b: () => lines.b[0].length}
+        let height = {a: () => lines.a.length, b: () => lines.b.length}
+        
+        while (height.a() > height.b()) {
+            lines.b.unshift(stringMul(" ", width.b()))
+        }
+        while (height.b() > height.a()) {
+            lines.a.unshift(stringMul(" ", width.a()))
+        }
+
+        function eq(a, b) {
+            if (a == b) return true
+            if (a == " " || b == " ") return true
+            if (a == "(" && b == "|") return true
+            if (a == ")" && b == "|") return true
+            if (b == "(" && a == "|") return true
+            if (b == ")" && a == "|") return true
+            return false
+        }
+
+        for (let i = 0; i < 2; i++) {
+            let compressBoth = true
+            for (let i = 0; i < height.a(); i++) {
+                let [x, y] = [lines.a[i].slice(-1), lines.b[i][0]]
+                if (!(eq(x, y))) {
+                    compressBoth = false
+                    break
+                }
+            }
+
+            if (!compressBoth)
+                break
+
+            for (let i = 0; i < height.a(); i++) {
+                let [x, y] = [lines.a[i].slice(-1), lines.b[i][0]]
+                if (x == " ") {
+                    lines.a[i] = lines.a[i].slice(0, -1) + lines.b[i][0]
+                }
+                lines.b[i] = lines.b[i].slice(1)
+            }
+        }
+
+        let combined = ""
+        for (let i = 0; i < height.a(); i++)
+            combined += lines.a[i] + lines.b[i] + "\n"
+        return combined
+    }
+
+    let output = AsciiArtLetters[text[0]]
+    for (let i = 1; i < text.length; i++) {
+        output = pasteHorizontal(output, AsciiArtLetters[text[i]], text[i - 1], text[i])
+    }
+    terminal.printLine(output)
+}, "draw the input in cool letters")
