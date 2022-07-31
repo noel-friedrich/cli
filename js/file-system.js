@@ -9,6 +9,7 @@ class FileType {
     static FOLDER = "folder"
     static READABLE = "readable"
     static PROGRAM = "program"
+    static MELODY = "melody"
 }
 
 class FileElement {
@@ -155,7 +156,13 @@ const extras_txt = `this terminal can actually do quite a lot:
 - plot math functions using 'plot'
 - solve equations for x using 'solve'
 - get and set key value pairs globally for all users of
-  this terminal using 'set' and 'get'`
+  this terminal using 'set' and 'get'
+- manage todo lists using 'todo'
+- create melodys using the melody-maker
+  -> open home/noel/melodies/README.txt for a
+     short how-to
+- create ascii-letter art using 'letters <text>'
+- play games using 'tictactoe', 'chess' or '4inarow'`
 
 let passwords_json = `{
     "google.com": "FAKE_PASSWORD",
@@ -180,12 +187,23 @@ while (passwords_json.match(/FAKE_PASSWORD/)) {
 
 const sitemapWebsites = [
     "anticookiebox", "cardoid", "chess", "chess/online", "cloth",
-    "compli", "coville", "decide", "draw", "gravity", "holz-design",
+    "compli", "coville", "decide", "draw", "gravity",
     "image-crop", "julius-coords", "lettre", "names", "particle",
     "path-finder", "perilious-path", "physics", "plot", "presi",
     "quiz", "random", "raycasting", "rps-ai", "sport", "struktogramm",
-    "todo", "trapped-knight", "tv", "unterschrift", "wave", "cli"
+    "todo", "trapped-knight", "tv", "unterschrift", "wave", "cli", "bezier"
 ]
+
+const MELODIES_FOLDER = new FileElement(FileType.FOLDER, {}, {"<": "cd ..", "melody": "melody"})
+
+const melodies_readme_txt = `Welcome to the Melodies Folder!
+In this folder are some .melody files, which contain basic melodys.
+- to list all melody files, use 'ls'
+- to play a file, use 'play <filename>'
+- to make your own melody, use 'melody'
+- to download a melody as a .mp3, use 'exportmelody <filename>'`
+
+MELODIES_FOLDER.content["README.txt"] = new FileElement(FileType.READABLE, melodies_readme_txt)
 
 let FILE_SYSTEM = new FileElement(FileType.FOLDER, {
     "welcome.txt": new FileElement(FileType.READABLE, welcome_txt_content),
@@ -221,7 +239,8 @@ let FILE_SYSTEM = new FileElement(FileType.FOLDER, {
             "passwords.json": new FileElement(FileType.READABLE, passwords_json)
         }, {"<": "cd ..", "passwords": "cat passwords.json"}),
         "contact.txt": new FileElement(FileType.READABLE, contact_txt),
-    }, {"<": "cd ..", "secret": "cd secret/", "contact": "cat contact.txt"}),
+        "melodies": MELODIES_FOLDER
+    }, {"<": "cd ..", "secret": "cd secret/", "contact": "cat contact.txt", "melodies": ["cd melodies/", "cat README.txt"]}),
     "extras.txt": new FileElement(FileType.READABLE, extras_txt),
     "github.exe": new FileElement(FileType.PROGRAM, "https://github.com/noel-friedrich/cli"),
 }, {"projects": ["cd projects/", "cat README.txt"], "about me": "cat about.txt", "help": "help"})
