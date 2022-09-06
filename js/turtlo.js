@@ -1,5 +1,16 @@
 let turtlo = {}
 
+function removeExistingTurtlos() {
+    let count = 0
+    for (let element of document.querySelectorAll(".turtlo")) {
+        if (!element.classList.contains("gone")) {
+            element.classList.add("gone")
+            count++
+        }
+    }
+    return count
+}
+
 {
 
     const TURTLO_STATE = {
@@ -39,11 +50,15 @@ let turtlo = {}
     addEventListener("mousemove", function(event) {
         turtlo.goalX = event.clientX
         turtlo.goalY = event.clientY
+        if (turtlo.imageElement) {
+            turtlo.goalX -= turtlo.imageElement.clientWidth / 2
+            turtlo.goalY -= turtlo.imageElement.clientHeight - 10
+        }
     })
 
     function drawTurtlo() {
-        let x = turtlo.x - turtlo.imageElement.clientWidth / 2
-        let y = turtlo.y - turtlo.imageElement.clientHeight - 10
+        let x = turtlo.x
+        let y = turtlo.y
 
         let timeElapsed = (Date.now() - turtlo.startTime) % 1000
         if (turtlo.inHugeSpin()) {
@@ -165,34 +180,39 @@ let turtlo = {}
         moveTurtlo()
     }
 
-    function removeExistingTurtlos() {
-        for (let element of document.querySelectorAll(".turtlo")) {
-            element.classList.add("gone")
-        }
-    }
-
-    function startTurtlo(huge=false) {
+    function startTurtlo(cssClass=null) {
+        terminal.printLine("to remove turtlo, use 'kill turtlo'") 
         removeExistingTurtlos()
         if (turtlo.intervalFunc)
             clearInterval(turtlo.intervalFunc)
         resetTurtlo()
         turtlo.imageElement.classList.add("turtlo")
-        if (huge) turtlo.imageElement.classList.add("huge")
+        if (cssClass) turtlo.imageElement.classList.add(cssClass)
         drawTurtlo()
         document.body.appendChild(turtlo.imageElement)
         turtlo.intervalFunc = setInterval(updateTurtlo, 50)
     }
 
     terminal.addFunction("turtlo", function() {
-        startTurtlo(false)   
+        startTurtlo()  
     }, "spawn turtlo", true)
 
     terminal.addFunction("hugeturtlo", function() {
-        startTurtlo(true)   
+        startTurtlo("huge")   
     }, "spawn huge turtlo")
+
+    terminal.addFunction("hugehugeturtlo", function() {
+        startTurtlo("hugehuge")   
+    }, "spawn huge huge turtlo")
 
     terminal.addFunction("oneko", function() {
         terminal.printLine("oneko isn't installed. Try turtlo instead!")
     }, "just use turtlo")
 
+}
+
+function killTurtlo() {
+    if (turtlo.intervalFunc)
+        clearInterval(turtlo.intervalFunc)
+    return removeExistingTurtlos() != 0
 }
