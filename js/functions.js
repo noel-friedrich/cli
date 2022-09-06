@@ -516,7 +516,7 @@ terminal.addFunction("style", async function(_, funcInfo) {
             continue
         terminal[attribute] = preset[attribute]
     }
-})
+}, "change the style of the terminal")
 
 let languageEvaluations = {
     "py": "it's got everything: explicity, typing, great syntax, just speed is lacking",
@@ -1846,7 +1846,7 @@ terminal.addFunction("history", function() {
     for (let i = Math.max(0, terminal.prevCommands.length - 1000); i < terminal.prevCommands.length; i++) {
         terminal.printf`${{[Color.COLOR_1]: stringPad(String(i + 1), 5)}}: ${{[Color.WHITE]: terminal.prevCommands[i]}}\n`
     }
-})
+}, "show the last 1000 commands")
 
 function runCommandFunc(rawArgs) {
     let num = parseInt(rawArgs.trim())
@@ -1924,7 +1924,7 @@ terminal.addFunction("sleep", async function(rawArgs) {
         return
     }
     await sleep(time * 1000)
-})
+}, "sleep for a number of seconds")
 
 const COW_SAY = ` 
 \\   ^__^
@@ -2735,7 +2735,7 @@ terminal.addFunction("href", function(_, funcInfo) {
 
 terminal.addFunction("pv", async function(rawArgs) {
     await terminal.animatePrint(rawArgs)
-})
+}, "print text with a cool animation")
 
 terminal.addFunction("cw", function(rawArgs, funcInfo) {
     let args = getArgs(funcInfo, ["?date"], {date: null})
