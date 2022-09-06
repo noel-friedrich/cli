@@ -976,4 +976,4 @@ terminal.addFunction("quiz", async function() {
         }
         terminal.printLine(".\n")
     }
-})
+}, "play the quiz game")
