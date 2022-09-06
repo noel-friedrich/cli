@@ -378,6 +378,7 @@ terminal.addFunction("4inarow", async function(rawArgs) {
             this.field = field
             this.movingColor = O
             this.lastMoves = []
+            this.prevMoveOrder = [3, 4, 2, 5, 0, 6, 1]
         }
 
         get lastMove() {
@@ -416,21 +417,13 @@ terminal.addFunction("4inarow", async function(rawArgs) {
                 }
             }
 
-            
-            let orderedMoves = [3, 4, 2, 5, 1, 6, 0]
-            
-            if (this.lastMove)
-                orderedMoves.sort(function(a, b) {
-                    let diffA = Math.abs(this.lastMove - a)
-                    let diffB = Math.abs(this.lastMove - b)
-                    return diffA - diffB
-                }.bind(this))
-
-            let moves = orderedMoves.filter(m => rowFree(m, this.field))
+            let moves = this.prevMoveOrder.filter(m => rowFree(m, this.field))
+            let moveEval = Array.from(Array(7), () => -10000000)
             let bestMove = null
             for (let move of moves) {
                 this.makeMove(move)
                 let score = -this.getBestMove(depth - 1, -beta, -alpha).score
+                moveEval[move] = score
                 this.unmakeMove(move)
                 if (score >= beta) {
                     return {
@@ -443,6 +436,13 @@ terminal.addFunction("4inarow", async function(rawArgs) {
                     bestMove = move
                 }
             }
+
+            if (DEPTH == depth) {
+                this.prevMoveOrder.sort(function(a, b) {
+                    return moveEval[a] - moveEval[b]
+                })
+            }
+
             return {
                 move: bestMove,
                 score: alpha
@@ -470,7 +470,8 @@ terminal.addFunction("4inarow", async function(rawArgs) {
             DEPTH++
         console.log(totalEvaluations)
         if (computerMove == null) {
-            throw new Error("the computer couldn't decide...")
+            terminal.printLine("The computer resigns. You win!")
+            return
         }
         putIntoField(computerMove, O)
     }
