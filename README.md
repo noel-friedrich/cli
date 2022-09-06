@@ -85,7 +85,7 @@ The following list can also be viewed using the `whatis *` command
 | `cmatrix`        | feel cool, be hacker                               |
 | `cmdnotfound`    | undefined                                          |
 | `color-test`     | test the color functionality                       |
-| `convert`        | undefined                                          |
+| `convert`        | convert a file to another format                   |
 | `cowsay`         | let the cow say something                          |
 | `cowthink`       | let the cow think something                        |
 | `cp`             | duplicate a file to another folder                 |
@@ -119,7 +119,7 @@ The following list can also be viewed using the `whatis *` command
 | `help`           | show this help menu                                |
 | `hi`             | say hello to the terminal                          |
 | `hidebtns`       | hide the terminal buttons                          |
-| `history`        | undefined                                          |
+| `history`        | show the last 1000 commands                        |
 | `href`           | open a link in another tab                         |
 | `hs`             | my evaluation of hs (programming language)         |
 | `html`           | my evaluation of html (programming language)       |
@@ -152,13 +152,13 @@ The following list can also be viewed using the `whatis *` command
 | `php`            | my evaluation of php (programming language)        |
 | `play`           | play a .melody file                                |
 | `plot`           | plot a mathematical function within bounds         |
-| `pv`             | undefined                                          |
+| `pv`             | print text with a cool animation                   |
 | `pwd`            | display the current working directory              |
 | `py`             | my evaluation of py (programming language)         |
 | `python`         | my evaluation of python (programming language)     |
 | `python2`        | my evaluation of python2 (programming language)    |
 | `python3`        | my evaluation of python3 (programming language)    |
-| `quiz`           | undefined                                          |
+| `quiz`           | play the quiz game                                 |
 | `reboot`         | reboot the website                                 |
 | `reset`          | reset everything                                   |
 | `reverse`        | reverse a message                                  |
@@ -171,10 +171,10 @@ The following list can also be viewed using the `whatis *` command
 | `set`            | set a value on the server                          |
 | `shutdown`       | shutdown the website... or not?                    |
 | `sl`             | steam locomotive                                   |
-| `sleep`          | undefined                                          |
+| `sleep`          | sleep for a number of seconds                      |
 | `solve`          | solve a mathematical equation for x                |
 | `sort`           | display a file in sorted order                     |
-| `style`          | undefined                                          |
+| `style`          | change the style of the terminal                   |
 | `sudo`           | execute a command as root                          |
 | `swift`          | my evaluation of swift (programming language)      |
 | `tac`            | tnetnoc elif daer                                  |
