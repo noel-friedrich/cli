@@ -1,31 +1,16 @@
-terminal.addFunction("ls", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length > 1) {
-        terminal.printf`${{[Color.RED]: "Error"}}: This command only accepts 1 input parameter\n`
-        return
-    }
-
-    let targetFolder = terminal.currFolder
-    if (parsedArgs.length == 1) {
-        let suppliedPath = strToPath(parsedArgs[0])
-        let fullPath = terminal.currPath.concat(suppliedPath)
-        let [preTargetFolder, errorPath] = getFolder(fullPath)
-        if (errorPath) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid Path given: \n`
-            terminal.printLine(`${errorPath} does not exist!`)
-            return
-        } else {
-            targetFolder = preTargetFolder
-        }
-    }
+terminal.addFunction("ls", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["?folder"], {folder: ""})
+    let targetFolder = terminal.getFile(!!args.folder ? args.folder : "", FileType.FOLDER)
 
     let i = 0
     for (let [fileName, file] of Object.entries(targetFolder.content)) {
         i++
-        terminal.printf`${{[Color.YELLOW]: String(i)}} ${{[Color.WHITE]: fileName}}`
-        if (file.type == FileType.FOLDER)
-            terminal.print("/")
-        terminal.printLine()
+        terminal.print(i + " ", Color.COLOR_1)
+        if (file.type == FileType.FOLDER) {
+            terminal.printCommand(`${fileName}/`, `cd ${fileName}/`)
+        } else {
+            terminal.printLine(fileName)
+        }
     }
 
     if (Object.entries(targetFolder.content).length == 0) {
@@ -37,41 +22,38 @@ function getSingleArg(rawArgs, cmdname, argname) {
     let parsedArgs = parseArgs(rawArgs)
     if (parsedArgs.length != 1) {
         terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} ${{[Color.WHITE]: cmdname}} ${{[Color.YELLOW]: "<" + argname + ">"}}'\n`
-        return
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} ${{[Color.WHITE]: cmdname}} ${{[Color.COLOR_1]: "<" + argname + ">"}}'\n`
+        throw new IntendedError()
     }
     return parsedArgs[0]
 }
 
-terminal.addFunction("cd", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 folder to change into:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} cd ${{[Color.YELLOW]: "<folder_name>"}}'\n`
-        return
-    }
-    var folderName = parsedArgs[0]
-    if (folderName == ".." || folderName == "-") {
+terminal.addFunction("cd", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["directory"])
+    
+    if (["-", ".."].includes(args.directory)) {
         if (terminal.currPath.length > 0) {
             terminal.currPath.pop()
             terminal.updatePath()
+            return
         } else {
-            terminal.printf`${{[Color.RED]: "Error"}}: You are already at ground level\n`
+            throw new Error("You are already at ground level")
         }
-        return
-    } else if (folderName == "/" || folderName == "~") {
+    } else if (["/", "~"].includes(args.directory)) {
         if (terminal.currPath.length > 0) {
             terminal.currPath = Array()
             terminal.updatePath()
+            return
         } else {
-            terminal.printf`${{[Color.RED]: "Error"}}: You are already at ground level\n`
+            throw new Error("You are already at ground level")
         }
-        return
     }
+    
+    let path = args.directory.split("/")
+    if (args.directory.length == 1)
+        path = args.directory.split("\\")
 
-    let path = folderName.split("/")
-    if (folderName.length == 1)
-        path = folderName.split("\\")
+    path = path.map(p => p.trim()).filter(p => p.length > 0)
 
     let i = 0
     for (var folderName of path) {
@@ -91,254 +73,166 @@ terminal.addFunction("cd", function(rawArgs) {
         }
     }
     terminal.printLine(`${folderName}: directory not found`)
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
+    terminal.printf`Use ${{[Color.COLOR_1]: "ls"}} to view available files\n`
 }, "change current directory", true)
 
-let catFunc = function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 file name to open:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} cat ${{[Color.YELLOW]: "<file_name>"}}'\n`
-        return
-    }
-
-    let openFileName = parsedArgs[0]
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && (file.type != FileType.FOLDER)) {
-            if (fileName == "passwords.json") {
-                setTimeout(function() {
-                    window.location.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                }, 1000)
+{
+    function makeCatFunc(readFunc) {
+        return async function(_, funcInfo) {
+            let args = getArgs(funcInfo, ["file"])
+            let file = terminal.getFile(args.file)
+            if (file.type == FileType.FOLDER) 
+                throw new Error("Cannot read directory data")
+            if (args.file.endsWith("passwords.json")) {
+                let favoriteUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                setTimeout(() => window.location.href = favoriteUrl, 1000)
             }
-            if (!file.content) {
-                terminal.printf`${{[Color.RED]: "Error"}}: File is empty\n`
-            } else {
-                terminal.printLine(file.content)
-            }
-            return
-        } else if (fileName == openFileName) {
-            terminal.printf`${{[Color.RED]: "Error"}}: File is not READABLE\n`
-            return
+            if (!file.content)
+                throw new Error("File is empty")
+            if (readFunc.constructor.name == "AsyncFunction")
+                await readFunc(file.content, args.file, file)
+            else 
+                readFunc(file.content, args.file, file)
         }
     }
-    terminal.printLine(`${openFileName}: file not found`)
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
+
+    {
+        let normalCatFunc = makeCatFunc(content => terminal.printLine(content))
+        terminal.addFunction("cat", normalCatFunc, "read file content", true)
+        terminal.addFunction("<", normalCatFunc, "alias for 'cat'")
+        terminal.addFunction("open", normalCatFunc, "alias for 'cat'")
+    }
+
+    terminal.addFunction("tac", makeCatFunc(function(content) {
+        let lines = content.split("\n")
+        for (var i = lines.length - 1; i >= 0; i--) {
+            terminal.printLine(lines[i])
+        }
+    }), "tnetnoc elif daer")
+
+    terminal.addFunction("sort", makeCatFunc(function(content) {
+        let lines = content.split("\n")
+        lines.sort()
+        for (var i = 0; i < lines.length; i++) {
+            terminal.printLine(lines[i])
+        }
+    }), "display a file in sorted order")
+
+    {
+
+        let runFunc = makeCatFunc(async function(content, fileName, file) {
+            if (fileName.endsWith(".js")) {
+                let jsEnv = new JsEnvironment()
+                jsEnv.setValue("console", {log: m => terminal.printLine(String(m))})
+                let [_, error] = jsEnv.eval(content)
+                if (error)
+                    throw new Error(String(error))
+            } else if (file.type != FileType.PROGRAM) {
+                throw new Error("File is not executable")
+            } else {
+                terminal.printLine("You will be redirected to:")
+                terminal.printLink(content, content)
+                terminal.printf`${{[Color.COLOR_1]: "Ctrl+C"}} to abort\n`
+                await sleep(2000)
+                window.location.href = content
+            }
+        })
+
+        terminal.addFunction("./", runFunc, "alias for 'run'")
+        terminal.addFunction("run", runFunc, "run a .exe file")
+
+    }
+
 }
-terminal.addFunction("cat", catFunc, "read file content", true)
-terminal.addFunction("<", catFunc, "alias for 'cat'")
 
-terminal.addFunction("tac", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 file name to open:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} tac ${{[Color.YELLOW]: "<file_name>"}}'\n`
-        return
+terminal.addFunction("wc", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["file"])
+    let file = terminal.getFile(args.file)
+    if (file.type == FileType.FOLDER) {
+        throw new Error("Cannot read file of type FOLDER")
     }
-
-    let openFileName = parsedArgs[0]
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && (file.type == FileType.READABLE || file.type == FileType.PROGRAM)) {
-            if (!file.content) {
-                terminal.printf`${{[Color.RED]: "Error"}}: File is empty\n`
-            } else {
-                let lines = file.content.split("\n")
-                for (var i = lines.length - 1; i >= 0; i--) {
-                    terminal.printLine(lines[i])
-                }
-            }
-            return
-        } else if (fileName == openFileName) {
-            terminal.printf`${{[Color.RED]: "Error"}}: File is not READABLE\n`
-            return
-        }
+    let fileInfos = {
+        "lines": file.content.split("\n").length,
+        "words": file.content.split(" ").length,
+        "characters": file.content.length
     }
-    terminal.printLine(`${openFileName}: file not found`)
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
-}, "tnetnoc elif daer")
-
-terminal.addFunction("sort", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 file name to open:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} sort ${{[Color.YELLOW]: "<file_name>"}}'\n`
-        return
+    for (let [infoName, infoContent] of Object.entries(fileInfos)) {
+        terminal.print(infoContent + " ", Color.COLOR_1)
+        terminal.printLine(infoName)
     }
-
-    let openFileName = parsedArgs[0]
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && (file.type == FileType.READABLE || file.type == FileType.PROGRAM)) {
-            if (!file.content) {
-                terminal.printf`${{[Color.RED]: "Error"}}: File is empty\n`
-            } else {
-                let lines = file.content.split("\n")
-                lines.sort()
-                for (var i = 0; i < lines.length; i++) {
-                    terminal.printLine(lines[i])
-                }
-            }
-            return
-        } else if (fileName == openFileName) {
-            terminal.printf`${{[Color.RED]: "Error"}}: File is not READABLE\n`
-            return
-        }
-    }
-    terminal.printLine(`${openFileName}: file not found`)
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
-}, "display a file in sorted order")
-
-terminal.addFunction("wc", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 file name to open:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} wc ${{[Color.YELLOW]: "<file_name>"}}'\n`
-        return
-    }
-
-    let openFileName = parsedArgs[0]
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && (file.type == FileType.READABLE || file.type == FileType.PROGRAM)) {
-            if (!file.content) {
-                terminal.printf`${{[Color.RED]: "Error"}}: File is empty\n`
-            } else {
-                let lineCount = file.content.split("\n").length
-                let wordCount = file.content.split(" ").length
-                terminal.printf`${{[Color.YELLOW]: lineCount}} lines\n`
-                terminal.printf`${{[Color.YELLOW]: wordCount}} words\n`
-            }
-            return
-        } else if (fileName == openFileName) {
-            terminal.printf`${{[Color.RED]: "Error"}}: File is not READABLE\n`
-            return
-        }
-    }
-    terminal.printLine(`${openFileName}: file not found`)
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
 }, "display word and line count of file")
 
 terminal.addFunction("whoami", function() {
-    terminal.printLine("You are a visitor of my website!")
-}, "get your current username")
-
-class JsEnvironment {
-    constructor() {
-        this.iframe = document.createElement("iframe")
-        this.iframe.style.display = "none"
-        document.body.appendChild(this.iframe)
-        this.document = this.iframe.contentDocument || this.iframe.contentWindow.document
+    function startsWithVowel(word) {
+        return (
+            word.startsWith("a")
+            || word.startsWith("e")
+            || word.startsWith("i")
+            || word.startsWith("o")
+            || word.startsWith("u")
+        )
     }
 
-    eval(code) {
-        try {
-            let evaluation = this.iframe.contentWindow.eval(code)
-            return [evaluation, null]
-        } catch (e) {
-            return [null, `${e.name}: ${e.message}`]
-        }
-    }
+    const adjectives = [
+        "cool", "fresh", "awesome", "beautiful",
+        "fantastic", "good", "wonderful", "colorful"
+    ], nouns = [
+        "queen", "goddess", "person", "king",
+        "god", "human", "princess", "prince"
+    ], sentences = [
+        "you are a<n> <adjective> <noun>. happy to have you here!",
+        "<n> <adjective> <noun>. that's what you are!",
+        "you, <noun>, are <adjective>!",
+        "i'm going to call you <noun>, because you are <adjective>"
+    ], choice = l => l[Math.floor(Math.random() * l.length)]
 
-    getVars() {
-        return this.iframe.contentWindow
+    let sentence = choice(sentences)
+    let lastAdjective = choice(adjectives)
+    while (/.*<(?:adjective|n|noun)>.*/.test(sentence)) {
+        sentence = sentence.replace(/<n>/, startsWithVowel(lastAdjective) ? "n": "")
+        sentence = sentence.replace(/<adjective>/, lastAdjective)
+        sentence = sentence.replace(/<noun>/, choice(nouns))
+        lastAdjective = choice(adjectives)
     }
-
-    getValue(name) {
-        return this.getVars()[name]
-    }
-
-    setValue(name, value) {
-        this.getVars()[name] = value
-    }
-}
+    terminal.printLine(sentence)
+}, "get info about yourself")
 
 let evalJsEnv = newMathEnv()
 evalJsEnv.setValue("console", {log: m => {
-    terminal.printf`${{[Color.rgb(38, 255, 38)]: ">>>"}} ${{[Color.WHITE]: String(m)}}\n`
+    terminal.printf`${{[Color.WHITE]: String(m)}}\n`
 }, realLog: console.log})
 
 terminal.addFunction("eval", function(rawArgs) {
     let [result, error] = evalJsEnv.eval(rawArgs)
     if (error) {
         terminal.printf`${{[Color.RED]: "Error"}}: ${{[Color.WHITE]: error}}\n`
-    } else if (result !== null) {
+    } else if (result !== undefined) {
         terminal.printf`${{[Color.rgb(38, 255, 38)]: ">>>"}} ${{[Color.WHITE]: String(result)}}\n`
     }
 }, "evaluate a javascript expression")
 
-let runFunc = function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 filename to open:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} run ${{[Color.YELLOW]: "<filename>"}}'\n`
-        return
-    }
-
-    let openFileName = parsedArgs[0]
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && fileName.endsWith(".js")) {
-            let jsEnv = new JsEnvironment()
-            jsEnv.setValue("console", {log: m => terminal.printLine(String(m))})
-            let [_, error] = jsEnv.eval(file.content)
-            if (error) {
-                terminal.printf`${{[Color.RED]: "Error"}}: ${{[Color.WHITE]: error}}\n`
-            }
-            return
-        } else if (fileName == openFileName && file.type != FileType.PROGRAM) {
-            terminal.printf`${{[Color.RED]: "Error"}}: File is not executable\n`
-            return
-        } else if (fileName == openFileName && file.type == FileType.PROGRAM) {
-            terminal.printLine("You will be redirected to:")
-            terminal.printLine(`${file.content}`)
-            setTimeout(function() {
-                window.location.href = file.content
-            }, 1000)
-            return
-        }
-    }
-    terminal.printLine(`${openFileName}: file not found`)   
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
-}
-
-terminal.addFunction("./", runFunc, "alias for 'run'")
-terminal.addFunction("run", runFunc, "run a .exe file")
-
-terminal.addFunction("open", catFunc, "alias for 'cat'")
-
 terminal.addFunction("echo", function(inp) {
     if (!inp) {
         terminal.printLine(`You must supply an argument to print:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} echo ${{[Color.YELLOW]: "<argument>"}}'\n`
+        terminal.printf`${{[Color.COLOR_2]: "$"}} echo ${{[Color.COLOR_1]: "<argument>"}}\n`
         return
     }
     terminal.printLine(inp)
-}, "print whatever you type")
+}, "echo your words")
 
 function missingPermissions() {
     terminal.printf`${{[Color.RED]: "Error"}}: You do not have permission to use this command!\n`
 }
 
-terminal.addFunction("mkdir", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 directory name:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} mkdir ${{[Color.YELLOW]: "<directory_name>"}}'\n`
-        return
-    }
-
-    let folderName = parsedArgs[0]
-    if (folderName.match(/[\\\/\.\s]/)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: invalid name!\n`
-        return
-    }
-
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == folderName) {
-            terminal.printf`${{[Color.RED]: "Error"}}: theres already a file/directory called ${{[Color.YELLOW]: fileName}}\n`
-            return
-        }
-    }
-
+terminal.addFunction("mkdir", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["directory_name"])
+    if (args.directory_name.match(/[\\\/\.\s]/))
+        throw new Error("File may not contain '/' or '\\'")
+    if (terminal.fileExists(args.directory_name))
+        throw new Error("File/Directory already exists")
     let newFolder = new FileElement(FileType.FOLDER, {})
-    terminal.currFolder.content[folderName] = newFolder
-    terminal.printLine(`Created ${terminal.pathAsStr + folderName}/`)
+    terminal.currFolder.content[args.directory_name] = newFolder
+    terminal.printLine(`Created ${terminal.pathAsStr + args.directory_name}/`)
 }, "create a new directory")
 
 async function animatedDo(action) {
@@ -349,151 +243,77 @@ async function animatedDo(action) {
             terminal.print(".")
         }
         await sleep(500)
-        terminal.printf`${{[Color.YELLOW]: "done"}}\n`
+        terminal.printf`${{[Color.COLOR_1]: "done"}}\n`
         resolve()
     })
 }
 
-terminal.addFunction("cp", async function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 2) {
-        terminal.printLine(`You must supply 2 arguments:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} cp ${{[Color.YELLOW]: "<file> <directory>"}}'\n`
-        return
+terminal.addFunction("cp", async function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["file", "directory"])
+    let file = terminal.getFile(args.file)
+    if (["..", "-"].includes(args.directory)) {
+        if (terminal.currFolder == terminal.rootFolder)
+            throw new Error("You are already at ground level")
+        var directory = terminal.currFolder.parent
+    } else if (["/", "~"].includes(args.directory)) {
+        var directory = terminal.rootFolder
+    } else {
+        var directory = terminal.getFile(args.directory, FileType.FOLDER)
     }
-
-    let [fileName, directoryName] = parsedArgs
-
-    if (fileName.match(/\/|\\/g) || directoryName.match(/\/|\\/g)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Arguments may not contain path (yet)\n`
-        return
-    }
-
-    if (!terminal.currFolder.find((n, v) => n == fileName && v.type != FileType.FOLDER)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: File ${{[Color.YELLOW]: fileName}} not found\n`
-        return
-    }
-
-    if (!terminal.currFolder.find((n, v) => n == directoryName && v.type == FileType.FOLDER)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Directory ${{[Color.YELLOW]: directoryName}} not found\n`
-        return
-    }
-
-    let directory = terminal.currFolder.content[directoryName]
-    let file = terminal.currFolder.content[fileName]
-    directory.content[fileName] = file
-
-    await animatedDo("copying")
+    directory.content[file.name] = file.copy()
 }, "duplicate a file to another folder")
 
-terminal.addFunction("mv", async function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 2) {
-        terminal.printLine(`You must supply 2 arguments:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} cp ${{[Color.YELLOW]: "<file> <directory>"}}'\n`
-        return
+terminal.addFunction("mv", async function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["file", "directory"])
+    let file = terminal.getFile(args.file)
+    if (["..", "-"].includes(args.directory)) {
+        if (terminal.currFolder == terminal.rootFolder)
+            throw new Error("You are already at ground level")
+        var directory = terminal.currFolder.parent
+    } else if (["/", "~"].includes(args.directory)) {
+        var directory = terminal.rootFolder
+    } else {
+        var directory = terminal.getFile(args.directory, FileType.FOLDER)
     }
-
-    let [fileName, directoryName] = parsedArgs
-
-    if (fileName.match(/\/|\\/g) || directoryName.match(/\/|\\/g)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Arguments may not contain path (yet)\n`
-        return
-    }
-
-    if (!terminal.currFolder.find((n, v) => n == fileName && v.type != FileType.FOLDER)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: File ${{[Color.YELLOW]: fileName}} not found\n`
-        return
-    }
-
-    if (!terminal.currFolder.find((n, v) => n == directoryName && v.type == FileType.FOLDER)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Directory ${{[Color.YELLOW]: directoryName}} not found\n`
-        return
-    }
-
-    let directory = terminal.currFolder.content[directoryName]
-    let file = terminal.currFolder.content[fileName]
-    directory.content[fileName] = file
-    delete terminal.currFolder.content[fileName]
-
-    await animatedDo("moving")
+    directory.content[file.name] = file.copy()
+    delete file.parent.content[file.name]
 }, "move a file to a different directory")
 
-terminal.addFunction("rmdir", async function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} rmdir ${{[Color.YELLOW]: "<directory>"}}'\n`
-        return
+terminal.addFunction("rmdir", async function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["directory"])
+    let directory = terminal.getFile(args.directory, FileType.FOLDER)
+    if (Object.keys(directory.content).length > 0) {
+        let msg = "the selected directory isn't empty. Continue?"
+        await terminal.acceptPrompt(msg, false)
     }
-
-    let directoryName = parsedArgs[0]
-
-    if (["melodies", "noel"].includes(directoryName,trim().toLowerCase())) {
-        throw new Error("You may not remove these folders, sorry!")
-        return
-    }
-
-    if (directoryName == "*") {
-        terminal.printLine(`Okay sure?`)
-        await sleep(1000)
-        for (let element of document.querySelectorAll("*"))
-            element.remove()
-        return
-    }
-
-    if (!terminal.currFolder.find((n, v) => n == directoryName && v.type == FileType.FOLDER)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Directory ${{[Color.YELLOW]: directoryName}} not found\n`
-        return
-    }
-
-    delete terminal.currFolder.content[directoryName]
-
-    await animatedDo("deleting")
+    delete directory.parent.content[directory.name]
 }, "delete a directory including all its contents")
 
-terminal.addFunction("rm", async function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} rm ${{[Color.YELLOW]: "<file>"}}'\n`
-        return
-    }
-
-    let fileName = parsedArgs[0]
-
-    if (fileName == "*") {
-        terminal.printLine(`Okay sure?`)
-        await sleep(1000)
-        for (let element of document.querySelectorAll("*"))
-            element.remove()
-        return
-    }
-
-    if (!terminal.currFolder.find((n, v) => n == fileName && v.type != FileType.FOLDER)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: File ${{[Color.YELLOW]: fileName}} not found\n`
-        return
-    }
-
-    delete terminal.currFolder.content[fileName]
-
-    await animatedDo("deleting")
+terminal.addFunction("rm", async function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["file"])
+    let file = terminal.getFile(args.file)
+    if (file.type == FileType.FOLDER)
+        throw new Error("cannot remove directory. use 'rmdir' instead")
+    delete file.parent.content[file.name]
 }, "delete a file of the current directory")
 
-terminal.addFunction("curl", missingPermissions, "download a file from the internet")
+terminal.addFunction("curl", function() {
+    terminal.print("this unfortunately doesn't work due to ")
+    terminal.printLink("CORS", "https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS")
+}, "download a file from the internet")
 
 terminal.addFunction("edit", async function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs)
     if (parsedArgs.length != 1) {
         terminal.printLine(`You must supply 1 file name:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} edit ${{[Color.YELLOW]: "<file>"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} edit ${{[Color.COLOR_1]: "<file>"}}'\n`
         return
     }
 
     let fileName = parsedArgs[0]
     let file = terminal.currFolder.find((n, v) => n == fileName && v.type != FileType.FOLDER)
     if (!file) {
-        terminal.printf`${{[Color.RED]: "Error"}}: File ${{[Color.YELLOW]: fileName}} not found\n`
+        terminal.printf`${{[Color.RED]: "Error"}}: File ${{[Color.COLOR_1]: fileName}} not found\n`
         return
     }
 
@@ -517,7 +337,7 @@ terminal.addFunction("edit", async function(rawArgs) {
             .map((_, i) => (fileLines[i]) ? fileLines[i] : "")
         let numElements = Array()
         for (let i = 0; i < windowHeight; i++) {
-            let num = terminal.printf`${{[Color.YELLOW]: stringPad(`${i}`, 3)}} `[1]
+            let num = terminal.printf`${{[Color.COLOR_1]: stringPad(`${i}`, 3)}} `[1]
             numElements.push(num)
             inputs.push(createInput(`${charWidth * windowWidth}px`))
             terminal.printLine(" |")
@@ -546,8 +366,16 @@ terminal.addFunction("edit", async function(rawArgs) {
 
         for (let input of inputs) {
             let i = inputs.indexOf(input)
+            let lineIndex = currScrollIndex + i
             input.onkeydown = function(event) {
-                if (event.key == "ArrowUp") {
+                if (event.key == "Backspace") {
+                    if (input.value.length == 0 && inputs[i - 1]) {
+                        inputs[i - 1].focus()
+                        lines.splice(lineIndex, 1)
+                        loadLines(currScrollIndex)
+                        event.preventDefault()
+                    }
+                } else if (event.key == "ArrowUp") {
                     if (inputs[i - 1]) {
                         inputs[i - 1].focus()
                         inputs[i - 1].selectionStart = inputs[i - 1].selectionEnd = 10000
@@ -556,7 +384,18 @@ terminal.addFunction("edit", async function(rawArgs) {
                         loadLines(currScrollIndex)
                     }
                     event.preventDefault()
-                } else if ((event.key == "ArrowDown" || event.key == "Enter")) {
+                } else if (event.key == "Enter") {
+                    lines.splice(lineIndex + 1, 0, "")
+                    lines[lineIndex] = input.value
+                    if (inputs[i + 1]) {
+                        inputs[i + 1].focus()
+                        inputs[i + 1].selectionStart = inputs[i + 1].selectionEnd = 10000
+                    } else {
+                        currScrollIndex++
+                    }
+                    loadLines(currScrollIndex)
+                    event.preventDefault()
+                } else if (event.key == "ArrowDown") {
                     if (inputs[i + 1]) {
                         inputs[i + 1].focus()
                         inputs[i + 1].selectionStart = inputs[i + 1].selectionEnd = 10000
@@ -565,16 +404,12 @@ terminal.addFunction("edit", async function(rawArgs) {
                         loadLines(currScrollIndex)
                     }
                     event.preventDefault()
-                } else {
-                    if (input.value.length > windowWidth - 1) {
-                        input.value = input.value.slice(0, windowWidth - 1)
-                    }
                 }
                 if (event.ctrlKey && event.key.toLowerCase() == "s") {
                     save()
                     event.preventDefault()
                 }
-                if (event.key == "Escape") {
+                if (event.key == "Escape" || (event.ctrlKey && event.key == "c")) {
                     resolve()
                 }
                 lines[i + currScrollIndex] = input.value
@@ -583,29 +418,14 @@ terminal.addFunction("edit", async function(rawArgs) {
     })
 }, "edit a file of the current directory")
 
-terminal.addFunction("touch", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 file name:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} touch ${{[Color.YELLOW]: "<file_name>"}}'\n`
-        return
-    }
-
-    let fileName = parsedArgs[0]
-    if (!fileName.match(/^[a-zA-Z0-9\-\_]{1,20}(\.[a-zA-Z0-9]{1,10})*$/)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: invalid file name\n`
-        return
-    }
-
-    for (let existingFileName of Object.keys(terminal.currFolder.content)) {
-        if (existingFileName.toLowerCase() == fileName.toLowerCase()) {
-            terminal.printf`${{[Color.RED]: "Error"}}: file already exists\n`
-            return
-        }
-    }
-
+terminal.addFunction("touch", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["filename"])
+    if (!/^[a-zA-Z0-9\-\_]{1,20}(\.[a-zA-Z0-9]{1,10})*$/.test(args.filename))
+        throw new Error("Invalid filename")
+    if (terminal.fileExists(args.filename))
+        throw new Error("File already exists")
     let newFile = new FileElement(FileType.READABLE, "")
-    terminal.currFolder.content[fileName] = newFile
+    terminal.currFolder.content[args.filename] = newFile
 }, "create a file in the current directory")
 
 terminal.addFunction("lsusb", function() {
@@ -616,19 +436,76 @@ terminal.addFunction("exit", function() {
     terminal.printLine(`please don't exit. please.`)
 }, "exit the terminal")
 
-terminal.addFunction("color-test", function() {
-    terminal.printf`This is ${{[Color.BLUE]: "Blue"}}\n`
-    terminal.printf`This is ${{[Color.YELLOW]: "Yellow"}}\n`
-    terminal.printf`This is ${{[Color.GREEN]: "Green"}}\n`
-    terminal.printf`This is ${{[Color.RED]: "Red"}}\n`
+terminal.addFunction("color-test", async function() {
+    let size = {x: 61, y: 31}
+    for (let i = 0; i < size.y; i++) {
+        for (let j = 0; j < size.x; j++) {
+            let x = (j / size.x - 0.5) * 2
+            let y = (i / size.y - 0.5) * 2
+            if (x*x + y*y > 1) {
+                terminal.print(" ")
+            } else {
+                let angle = Math.atan2(y, x) / Math.PI * 180
+                let hue = Math.round(angle)
+                let lightness = Math.round(90 - (x*x + y*y) * 90)
+                let color = `hsl(${hue}, 100%, ${lightness}%)`
+                terminal.print("#", color)
+            }
+        }
+        terminal.printLine()
+    }
 }, "test the color functionality")
 
-function colorFunc() {
-    terminal.printf`Use ${{[Color.YELLOW]: "background"}} for changing the background color\n`
-    terminal.printf`Use ${{[Color.YELLOW]: "foreground"}} for changing the background color\n`
-}
-terminal.addFunction("color", colorFunc, "display styling options for the terminal")
-terminal.addFunction("style", colorFunc, "alias for 'color'")
+terminal.addFunction("style", async function(_, funcInfo) {
+    class Preset {
+
+        constructor(b=undefined, f=undefined, c1="yellow", c2="rgb(139, 195, 74)", btn=null) {
+            this.background = b
+            this.foreground = f
+            this.accentColor1 = c1
+            this.accentColor2 = c2
+            this.btnColor = btn || b || "black"
+        }
+
+    }
+
+    let PRESETS = {}
+    PRESETS["normal"] = new Preset("rgb(3,3,6)", "white")
+    PRESETS["ha©k€r"] = new Preset("black", "#4aff36", "#20C20E", "#20C20E")
+    PRESETS["light"] = new Preset("#255957", "#EEEBD3")
+    PRESETS["fire"] = new Preset("linear-gradient(180deg, red, yellow)", "white")
+    PRESETS["phebe"] = new Preset("linear-gradient(to right, red,orange,yellow,lightgreen,blue,indigo,violet)", "white")
+    PRESETS["purple"] = new Preset("#371E30", "#F59CA9", "#DF57BC", "#F6828C")
+    PRESETS["slate"] = new Preset("#361d32", "#f1e8e6", "#f55951", "#f55951")
+    PRESETS["red"] = new Preset("#e74645", "white", "#fdfa66", "#fdfa66", "#e74645")
+    PRESETS["cold"] = new Preset("#3c2a4d", "#e0f0ea", "#95adbe", "#95adbe")
+
+    try {
+        var args = getArgs(funcInfo, ["preset"])
+    } catch {
+        terminal.printLine("There are a few presets to choose from:")
+        let lineWidth = 0
+        for (let presetName of Object.keys(PRESETS)) {
+            lineWidth += (presetName + " ").length
+            terminal.printCommand(presetName + " ", `style ${presetName}`, Color.WHITE, false)
+            if (lineWidth > 35) {
+                terminal.printLine()
+                lineWidth = 0
+            }
+        }
+        terminal.printLine()
+        return
+    }
+    if (!(args.preset in PRESETS))
+        throw new Error(`Unknown preset "${args.preset}"`)
+    let attributes = ["background", "foreground", "accentColor1", "accentColor2", "btnColor"]
+    let preset = PRESETS[args.preset]
+    for (let attribute of attributes) {
+        if (preset[attribute] == undefined)
+            continue
+        terminal[attribute] = preset[attribute]
+    }
+})
 
 let languageEvaluations = {
     "py": "it's got everything: explicity, typing, great syntax, just speed is lacking",
@@ -670,9 +547,10 @@ terminal.addFunction("top", function() {
     terminal.printLine(`I have no idea how your machine is doing. Maybe ask another console?`)
 }, "display the top processes")
 
-terminal.addFunction("clear", function() {
-    terminal.parentNode.innerHTML = ""
-    helloWorld.run()
+terminal.addFunction("clear", async function() {
+    window.location.reload()
+    await sleep(1000)
+    throw new Error("reloading failed.")
 }, "clear terminal window", true)
 
 async function funnyPrint(msg) {
@@ -700,6 +578,7 @@ const customFriendScores = {
     "justus": 10.00,
     "erik": 9.80,
     "zoe": 10.00,
+    "imprinzessa": 9.999
 }
 
 function randomFriendScore(friendName) {
@@ -734,7 +613,7 @@ terminal.addFunction("f", function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs)
     if (parsedArgs.length != 1) {
         terminal.printLine(`You must supply 1 friend:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} f ${{[Color.YELLOW]: "<friend_name>"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} f ${{[Color.COLOR_1]: "<friend_name>"}}'\n`
         return
     }
 
@@ -743,7 +622,7 @@ terminal.addFunction("f", function(rawArgs) {
 
     if (friendName in customFriendScores) friendScore = customFriendScores[friendName]
 
-    terminal.printf`Friendship-Score with ${{[Color.ORANGE]: friendName}}: ${{[Color.YELLOW]: String(friendScore) + "/10"}}\n`
+    terminal.printf`Friendship-Score with ${{[Color.ORANGE]: friendName}}: ${{[Color.COLOR_1]: String(friendScore) + "/10"}}\n`
 }, "display the friendship-score of a friend")
 
 let aptFunc = async function(rawArgs) {
@@ -776,7 +655,7 @@ function brainfuckFunc(rawArgs) {
     let parsedArgs = parseArgs(rawArgs, false)
     if (parsedArgs.length != 1) {
         terminal.printLine(`You must supply the brainfuck code:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} brainfuck ${{[Color.YELLOW]: "<code>"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} brainfuck ${{[Color.COLOR_1]: "<code>"}}'\n`
         return
     }
     
@@ -890,7 +769,7 @@ function brainfuckFunc(rawArgs) {
         for (let i = 0; i < memory.length; i++) {
             let indexStr = stringPad(String(i), indexWidth)
             let valueStr = stringPad(String(memory[i]), valueWidth)
-            terminal.printf`| ${{[Color.YELLOW]: indexStr}} | ${{[Color.WHITE]: valueStr}} |\n`
+            terminal.printf`| ${{[Color.COLOR_1]: indexStr}} | ${{[Color.WHITE]: valueStr}} |\n`
             terminal.printLine(lineSep)
         }
     }
@@ -911,13 +790,13 @@ terminal.addFunction("alias", function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs)
     if (parsedArgs.length != 2) {
         terminal.printLine(`You must supply exactly two parameters:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} alias ${{[Color.YELLOW]: "<alias> <command>"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} alias ${{[Color.COLOR_1]: "<alias> <command>"}}'\n`
         return
     }
 
     let [alias, command] = parsedArgs
     if (terminal.functions.map(f => f.name.toLowerCase()).includes(alias.toLowerCase())) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.YELLOW]: alias}} already exists!\n`
+        terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.COLOR_1]: alias}} already exists!\n`
         return
     }
     if (!String(alias).match(/^[a-zA-Z][-\_0-9a-zA-Z]*$/) || alias.length > 20) {
@@ -925,7 +804,7 @@ terminal.addFunction("alias", function(rawArgs) {
         return
     }
     if (!terminal.functions.map(f => f.name).includes(command)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.YELLOW]: command}} not found!\n`
+        terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.COLOR_1]: command}} not found!\n`
         return
     }
     terminal.addFunction(alias, function(rawArgs) {
@@ -956,16 +835,20 @@ terminal.addFunction("lscmds", async function(rawArgs) {
     let tempLine = ""
     for (let terminalFunc of terminal.functions) {
         tempLine += terminalFunc.name
+        terminal.printCommand(terminalFunc.name, terminalFunc.name, Color.WHITE, false)
+        terminal.print(" ")
         if (tempLine.length > 40) {
-            terminal.printLine(tempLine)
             tempLine = ""
+            terminal.printLine()
         } else {
             tempLine += " "
         }
     }
-    if (tempLine)
-        terminal.printLine(tempLine)
-    terminal.printf`\nUse ${{[Color.YELLOW]: "whatis *"}} to see all descriptions.\n`
+    if (tempLine.trim().length > 0) terminal.printLine()
+    terminal.print("Use ")
+    terminal.printCommand("whatis *", "whatis *", Color.COLOR_1, false)
+    terminal.printLine(" to see all descriptions")
+
 }, "list all existing commands", true)
 
 let shutDownFunc = async function() {
@@ -977,7 +860,7 @@ let shutDownFunc = async function() {
     terminal.printLine()
     await terminal.animatePrint("Initiating Shutdown Process......")
     for (let i = 10; i > 0; i--) {
-        terminal.printf`${{[Color.YELLOW]: `${stringPad(String(i), 2)}`}} Seconds left\n`
+        terminal.printf`${{[Color.COLOR_1]: `${stringPad(String(i), 2)}`}} Seconds left\n`
         await sleep(1000)
     }
     await sleep(1000)
@@ -1019,10 +902,23 @@ async function fileFromUpload(fileType=null) {
                 return
             }
             let fileReader = new FileReader()
+            let fileName = input.files[0].name
+            let readAsDataURL = (
+                fileName.endsWith(".jpg")
+                || fileName.endsWith(".png")
+                || fileName.endsWith(".jpeg")
+                || fileName.endsWith(".svg")
+                || fileName.endsWith(".bmp")
+                || fileName.endsWith(".gif")
+            )
             fileReader.onload = function(event) {
-                resolve([input.files[0].name, event.target.result])
+                resolve([fileName, event.target.result, readAsDataURL])
             }
-            fileReader.readAsText(input.files[0])
+            if (readAsDataURL) {
+                fileReader.readAsDataURL(input.files[0])
+            } else {
+                fileReader.readAsText(input.files[0])
+            }
         }
 
         document.body.onfocus = () => {if (!input.value.length) reject()}  
@@ -1110,7 +1006,7 @@ terminal.addFunction("password", async function(argString) {
     let norepeat = false
     let characters = standardChars
     if (namedArgs.hasOwnProperty("h") || namedArgs.hasOwnProperty("help")) {
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} password ${{[Color.YELLOW]: "-l <length> -c <characters> -n <num-passwords> -norepeat"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} password ${{[Color.COLOR_1]: "-l <length> -c <characters> -n <num-passwords> -norepeat"}}'\n`
         terminal.printLine(`> length: The length of the password. Defaults to ${length}`)
         terminal.printLine("> characters: The characters to use in the password. Defaults to:")
         terminal.printLine(`    ${standardChars}`)
@@ -1141,7 +1037,7 @@ terminal.addFunction("password", async function(argString) {
     for (let i = 0; i < numPasswords; i++) {
         let password = generatePassword(length, characters, norepeat)
         if (password.length == length)
-            terminal.printf`${{[Color.YELLOW]: password}}\n`
+            terminal.printf`${{[Color.COLOR_1]: password}}\n`
         else
             break
         if (i == 0 && numPasswords == 1) {
@@ -1256,15 +1152,15 @@ terminal.addFunction("solve", async function(argString) {
     let parsedArgs = parseArgs(argString, false)
     if (parsedArgs.length < 1) {
         terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} solve ${{[Color.YELLOW]: "<equation>"}}'\n`
-        terminal.printf`An example equation could be: ${{[Color.YELLOW]: "2 * x + 4 = 5"}}\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} solve ${{[Color.COLOR_1]: "<equation>"}}'\n`
+        terminal.printf`An example equation could be: ${{[Color.COLOR_1]: "2 * x + 4 = 5"}}\n`
         return
     }
     let namedArgs = extractNamedArgs(argString)
     let equation = parsedArgs[0]
     if (!/^[0-9x\s\\\*\.a-z+-\^\(\)]+=[0-9x\s\\\*\.a-z+-\^\(\)]+$/.test(equation)) {
         terminal.printf`${{[Color.RED]: "Error"}}: Invalid equation!\n`
-        terminal.printf`An valid equation could be: ${{[Color.YELLOW]: "2x+4=5"}}\n`
+        terminal.printf`An valid equation could be: ${{[Color.COLOR_1]: "2x+4=5"}}\n`
         return
     }
     while (/[0-9]x/g.test(equation)) equation = equation.replace(/([0-9])x/g, "$1*x")
@@ -1346,7 +1242,7 @@ terminal.addFunction("solve", async function(argString) {
         if (shownSolutions.includes(solution)) continue
         solutionCount++
         let xName = `x${solutionCount}`
-        terminal.printf`${{[Color.YELLOW]: xName}} = ${{[Color.LIGHT_GREEN]: solution}}\n`
+        terminal.printf`${{[Color.COLOR_1]: xName}} = ${{[Color.LIGHT_GREEN]: solution}}\n`
         shownSolutions.push(solution)
     }
     if (solutions.length == 0) {
@@ -1357,40 +1253,43 @@ terminal.addFunction("solve", async function(argString) {
     }
 }, "solve a mathematical equation for x")
 
-terminal.addFunction("plot", async function(argString) {
-    let parsedArgs = parseArgs(argString, false)
-    if (parsedArgs.length < 1) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} plot ${{[Color.YELLOW]: "<equation>"}}'\n`
-        terminal.printf`An example equation could be: ${{[Color.YELLOW]: "x^2"}}\n`
-        return
+terminal.addFunction("plot", async function(_, funcInfo) {
+    try {   
+        var args = getArgs(funcInfo, [
+            "equation",
+            "?xmin:n:-1000~1000", "?xmax:n:-1000~1000",
+            "?ymin:n:-1000~1000", "?ymax:n:-1000~1000",
+            "?playtime:n:0~10000"
+        ], {
+            xmin: -Math.PI, xmax: Math.PI,
+            ymin: -Math.PI, ymax: Math.PI,
+            playtime: 2500
+        })
+    } catch {
+        terminal.printf`An example equation could be: ${{[Color.COLOR_1]: "x^2"}}\n`
+        throw new IntendedError()
     }
-    let namedArgs = extractNamedArgs(argString)
-    let equation = parsedArgs[0]
+    let equation = args.equation
     if (!/^[0-9x\s\\\*\.a-z+-\^\(\)]+$/.test(equation)) {
         terminal.printf`${{[Color.RED]: "Error"}}: Invalid equation!\n`
-        terminal.printf`An valid equation could be: ${{[Color.YELLOW]: "x^2"}}\n`
+        terminal.printf`An valid equation could be: ${{[Color.COLOR_1]: "x^2"}}\n`
         return
     }
     let gridSize = {
         x: 60,
         y: 30
     }
-    while (/[0-9]x/g.test(equation)) equation = equation.replace(/([0-9])x/g, "$1*x")
-    while (/[0-9a-z\.]+\s*\^\s*[0-9a-z\.]+/g.test(equation)) equation = equation.replace(/([0-9a-z\.]+)\s*\^\s*([0-9a-z\.]+)/g, "$1**$2")
+    while (/[0-9]x/g.test(equation))
+        equation = equation.replace(/([0-9])x/g, "$1*x")
+    while (/[0-9a-z\.]+\s*\^\s*[0-9a-z\.]+/g.test(equation))
+        equation = equation.replace(/([0-9a-z\.]+)\s*\^\s*([0-9a-z\.]+)/g, "$1**$2")
     let jsEnv = newMathEnv()
     let grid = Array.from(Array(gridSize.y)).map(() => Array(gridSize.x).fill(" "))
     let viewBound = {
-        x: {
-            min: namedArgs.hasOwnProperty("xmin") ? parseFloat(namedArgs.xmin) : -Math.PI,
-            max: namedArgs.hasOwnProperty("xmax") ? parseFloat(namedArgs.xmax) :  Math.PI
-        },
-        y: {
-            min: namedArgs.hasOwnProperty("ymin") ? parseFloat(namedArgs.ymin) : -Math.PI,
-            max: namedArgs.hasOwnProperty("ymax") ? parseFloat(namedArgs.ymax) :  Math.PI
-        }
+        x: {min: args.xmin, max: args.xmax},
+        y: {min: args.ymin, max: args.ymax}
     }
-    if (viewBound.x.min > viewBound.x.max || viewBound.y.min > viewBound.y.max) {
+    if (viewBound.x.min >= viewBound.x.max || viewBound.y.min >= viewBound.y.max) {
         terminal.printf`${{[Color.RED]: "Error"}}: Invalid bounds!\n`
         return
     }
@@ -1416,7 +1315,7 @@ terminal.addFunction("plot", async function(argString) {
                     case "\\":
                     case "]":
                     case "[":
-                        color = Color.YELLOW
+                        color = Color.COLOR_1
                 }
                 terminal.print(grid[y][x], color)
             }
@@ -1484,7 +1383,7 @@ terminal.addFunction("plot", async function(argString) {
     }
     await drawGrid()
     terminal.scroll()
-    let playTime = namedArgs.hasOwnProperty("l") ? (namedArgs.l * 2) : 10000
+    let playTime = args.playtime * 2
     function calcFrequency(y) {
         let maxFreq = 1000
         let minFreq = 200
@@ -1509,83 +1408,247 @@ terminal.addFunction("plot", async function(argString) {
 }, "plot a mathematical function within bounds")
 
 const OG_BACKGROUND_COLOR = "rgb(3, 3, 6)"
-terminal.addFunction("background", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} background ${{[Color.YELLOW]: "<color>"}}'\n`
-        return
-    }
-    let color = parsedArgs[0]
-    if (color.toLowerCase() == "reset") {
+terminal.addFunction("background", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["color"])
+    if (args.color.toLowerCase() == "reset") {
         terminal.background = OG_BACKGROUND_COLOR
         return
     }
-    terminal.background = color
+    terminal.background = args.color
 }, "change the background color of the terminal")
 
 const OG_FOREGROUND_COLOR = "rgb(255, 255, 255)"
-terminal.addFunction("foreground", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} foreground ${{[Color.YELLOW]: "<color>"}}'\n`
-        return
-    }
-    let color = parsedArgs[0]
-    if (color.toLowerCase() == "reset") {
+terminal.addFunction("foreground", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["color"])
+    if (args.color.toLowerCase() == "reset") {
         terminal.foreground = OG_FOREGROUND_COLOR
         return
     }
-    terminal.foreground = color
+    terminal.foreground = args.color
 }, "change the foreground color of the terminal")
 
 terminal.addFunction("hi", async () => await funnyPrint("hello there!"), "say hello to the terminal")
 
-terminal.addFunction("cal", async function() {
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    let date = new Date()
-    let month = monthNames[date.getMonth()]
-    let year = date.getFullYear()
-    let day = dayNames[date.getDay()]
-    let dayOfMonth = date.getDate()
-    let tableData = Array.from(Array(6)).map(() => Array(7).fill("  "))
-    let tableHeader = "Su Mo Tu We Th Fr Sa"
+terminal.addFunction("whatday", function(rawArgs, funcInfo) {
+    function dayToStr(n) {
+        return [
+            "first", "second", "third", "fourth",
+            "fifth", "sixth", "seventh", "eigth",
+            "ninth", "tenth", "eleventh", "twelfth",
+            "thirteenth", "fourteenth", "fifteenth",
+            "sixteenth", "seventeenth", "eighteenth",
+            "nineteenth", "twentyth", "twentyfirst",
+            "twentysecond", "twentythird", "twentyfourth",
+            "twentyfifth", "twentysixth", "twentyseventh",
+            "twentyeighth", "twentyninth", "thirtieth",
+            "thirtyfirst"
+        ][n - 1]
+    }
 
-    function printTable() {
-        let headerText = `${month} ${year}`
-        let paddingWidth = Math.floor((tableHeader.length - headerText.length) / 2)
-        for (let i = 0; i < paddingWidth; i++) {
-            headerText = " " + headerText
+    function yearToStr(n) {
+        if (n == 0) return "zero"
+        let out = ""
+        if (n < 0) {
+            out += "minus "
+            n *= -1
         }
-        terminal.printf`${{[Color.YELLOW]: headerText}}\n`
-        terminal.printLine(tableHeader)
-        for (let y = 0; y < 6; y++) {
-            for (let x = 0; x < 7; x++) {
-                if (dayOfMonth == parseInt(tableData[y][x])) {
-                    terminal.printf`${{[Color.YELLOW]: tableData[y][x]}} `
-                } else {
-                    terminal.print(tableData[y][x] + " ")
-                }
+        function twoDigitNumStr(n) {
+            const n1s = [
+                "", "one", "two", "three", "four", "five",
+                "six", "seven", "eight", "nine", "ten",
+                "eleven", "twelve", "thirteen", "fourteen",
+                "fifteen"
+            ], n2s = [
+                "", "", "twenty", "thirty", "fourty",
+                "fifty", "sixty", "seventy", "eighty",
+                "ninety"
+            ]
+            if (n1s[n]) return n1s[n]
+            let n1 = n % 10
+            let n2 = parseInt((n - n1) / 10)
+            let out = ""
+            out += n2s[n2]
+            out += n1s[n1]
+            if (n2 == 1) {
+                out += "teen"
             }
-            terminal.printLine()
+            return out
+        }
+        if (String(n).length == 1) {
+            return out + twoDigitNumStr(n)
+        }
+        if (String(n).length == 2) {
+            return out + twoDigitNumStr(n)
+        }
+        if (String(n).length == 3) {
+            let n1 = String(n)[0]
+            let n2 = String(n).slice(1, 3)
+            return out + twoDigitNumStr(n1) + "hundred" + twoDigitNumStr(n2)
+        }
+        if (String(n).length == 4) {
+            let n1 = String(n).slice(0, 2)
+            let n2 = String(n).slice(2, 4)
+            return out + twoDigitNumStr(n1) + "-" + twoDigitNumStr(n2)
+        } 
+    }
+
+    const dayNames = [
+        "Sunday", "Monday", "Tuesday", "Wednesday",
+        "Thursday", "Friday", "Saturday"
+    ], monthNames = [
+        "January", "February", "March", "April", "May",
+        "June", "July", "August", "September",
+        "October", "November", "December"
+    ]
+    let dateStr = getSingleArg(rawArgs, funcInfo.funcName, "DD:MM:YYYY")
+
+    function dateEq(d1, d2) {
+        return (d1.getFullYear() == d2.getFullYear()
+        && d1.getMonth() == d2.getMonth()
+        && d1.getDate() == d2.getDate())
+    }
+
+    function sayDay(date) {
+        let day = dayToStr(date.getDate())
+        let month = monthNames[date.getMonth()].toLowerCase()
+        let year = yearToStr(date.getFullYear())
+        let dayName = dayNames[date.getDay()].toLowerCase()
+        if (dateEq(new Date(), date)) {
+            terminal.printLine(`today is a ${dayName}`)
+        } else {
+            if (new Date() > date) {
+                terminal.printLine(`the ${day} of ${month} of the year ${year} was a ${dayName}`)
+            } else {
+                terminal.printLine(`the ${day} of ${month} of the year ${year} will be a ${dayName}`)
+            }
         }
     }
 
-    let weekIndex = 0
-    for (let i = 1;; i++) {
-        date.setDate(i)
-        if (date.getMonth() != monthNames.indexOf(month)) {
-            break
+    if (dateStr.toLowerCase() == "t" || dateStr.toLowerCase() == "today") {
+        sayDay(new Date())
+        return
+    } else if (/^[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,4}$/.test(dateStr)) {
+        let [d, m, y] = dateStr.split(".").map(i => parseInt(i))
+        let date = new Date()
+        date.setFullYear(y, m - 1, d)
+        if (date.getDate() != d || (date.getMonth() + 1) != m || date.getFullYear() != y) {
+            throw new Error("Invalid day - doesn't exist.")
         }
-        if (date.getDay() == 0) {
-            weekIndex++
+        sayDay(date)
+    } else {
+        terminal.printLine("Date-Format: DD:MM:YYYY, e.g. 01.01.1970")
+        throw new Error(`Invalid date: ${dateStr}`)
+    }
+    
+}, "get the weekday of a given date")
+
+terminal.addFunction("cal", async function(rawArgs) {
+    const today = new Date()
+
+    const monthNames = [
+        "January", "February", "March", "April", "May",
+        "June", "July", "August", "September",
+        "October", "November", "December"
+    ]
+
+    function printMonth(monthIndex, year) {
+        let tableData = Array.from(Array(6)).map(() => Array(7).fill("  "))
+        let tableHeader = "Su Mo Tu We Th Fr Sa"
+        let date = new Date()
+        date.setFullYear(year, monthIndex, 1)
+        let month = monthNames[date.getMonth()]
+        let dayOfMonth = (new Date()).getDate()
+
+        function printTable() {
+            let headerText = `${month} ${stringPad(year, 4, "0")}`
+            let paddingWidth = Math.floor((tableHeader.length - headerText.length) / 2)
+            for (let i = 0; i < paddingWidth; i++) {
+                headerText = " " + headerText
+            }
+            terminal.printf`${{[Color.COLOR_1]: headerText}}\n`
+            terminal.printLine(tableHeader)
+            for (let y = 0; y < 6; y++) {
+                for (let x = 0; x < 7; x++) {
+                    if (dayOfMonth == parseInt(tableData[y][x]) &&
+                        today.getMonth() == monthIndex &&
+                        today.getFullYear() == year) {
+                        terminal.printf`${{[Color.COLOR_1]: tableData[y][x]}} `
+                    } else {
+                        terminal.print(tableData[y][x] + " ")
+                    }
+                }
+                terminal.printLine()
+            }
         }
-        tableData[weekIndex][date.getDay()] = stringPad(String(i), 2)
+
+        let weekIndex = 0
+        for (let i = 1;; i++) {
+            date.setDate(i)
+            if (date.getMonth() != monthNames.indexOf(month)) {
+                break
+            }
+            if (date.getDay() == 0) {
+                weekIndex++
+            }
+            tableData[weekIndex][date.getDay()] = stringPad(String(i), 2)
+        }
+
+        printTable()
     }
 
-    printTable()
+    let chosenYear = null
+    let chosenMonth = null
+
+    let arguments = rawArgs.trim().split(" ").map(a => a.trim()).filter(a => a.length > 0)
+
+    argument_loop:
+    for (let argument of arguments) {
+        for (let month of monthNames) {
+            if (month.toLowerCase().startsWith(argument.toLowerCase())) {
+                chosenMonth = monthNames.indexOf(month)
+                continue argument_loop
+            }
+        }
+        if (/^[0-9]{1,4}$/.test(argument)) {
+            chosenYear = parseInt(argument)
+        } else if (/^[0-9]{1,2}\.[0-9]{1,4}$/.test(argument)) {
+            let [month, year] = argument.split(".")
+            chosenMonth = parseInt(month) - 1
+            chosenYear = parseInt(year)
+        } else if (/^[0-9]{1,4}\.[0-9]{1,2}$/.test(argument)) {
+            let [year, month] = argument.split(".")
+            chosenMonth = parseInt(month) - 1
+            chosenYear = parseInt(year)
+        } else {
+            throw new Error(`Invalid Month/Year "${argument}"`)
+        }
+    }
+
+    if (chosenYear < 0) throw new Error("Cannot look past the year 0 - sorry")
+    if (chosenYear > 9999) throw new Error("Cannot look past the year 9999 - sorry")
+    if (chosenMonth > 11 || chosenMonth < 0)
+        throw new Error("That month doesn't exist in this world.")
+
+    if (chosenYear == null && chosenMonth == null) {
+        chosenYear = today.getFullYear()
+        chosenMonth = today.getMonth()
+    }
+
+    if (chosenMonth != null && chosenYear == null) {
+        chosenYear = today.getFullYear()
+    }
+
+    if (chosenMonth == null) {
+        for (let month = 0; month < 12; month++) {
+            printMonth(month, chosenYear)
+            if (month < 12 - 1) {
+                terminal.printLine()
+            }
+        }
+    } else {
+        printMonth(chosenMonth, chosenYear)
+    }
+
 }, "display the calendar of the current month")
 
 terminal.addFunction("bc", async function() {
@@ -1634,7 +1697,7 @@ terminal.addFunction("factor", async function() {
             } else {
                 let num = parseArgs(word)
                 let factors = primeFactors(num).join(" ")
-                terminal.printf`${{[Color.WHITE]: num}}: ${{[Color.YELLOW]: factors}}\n`
+                terminal.printf`${{[Color.WHITE]: num}}: ${{[Color.COLOR_1]: factors}}\n`
             }
         }
     }
@@ -1662,7 +1725,7 @@ terminal.addFunction("get", async function(rawArgs) {
     let key = rawArgs.trim()
     if (key.length == 0) {
         terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} get ${{[Color.YELLOW]: "<key>"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} get ${{[Color.COLOR_1]: "<key>"}}'\n`
         return
     }
     if (!KEY_REGEX.test(key)) {
@@ -1677,7 +1740,7 @@ terminal.addFunction("set", async function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs)
     if (parsedArgs.length != 2) {
         terminal.printLine(`You must supply 2 arguments:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} set ${{[Color.YELLOW]: "<key> <value>"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} set ${{[Color.COLOR_1]: "<key> <value>"}}'\n`
         return
     }
     let key = parsedArgs[0]
@@ -1700,7 +1763,7 @@ terminal.addFunction("groups", function(rawArgs) {
         terminal.printLine(`adm cdrom sudo dip plugdev cool epic funny`)
     } else {
         for (let user of users) {
-            terminal.printf`groups: '${{[Color.YELLOW]: user}}': no such user\n`
+            terminal.printf`groups: '${{[Color.COLOR_1]: user}}': no such user\n`
         }
     }
 }, "display the groups of a user")
@@ -1730,7 +1793,7 @@ terminal.addFunction("head", function(rawArgs, funcInfo) {
         }
     }
     terminal.printLine(`${openFileName}: file not found`)
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
+    terminal.printf`Use ${{[Color.COLOR_1]: "ls"}} to view available files\n`
 }, "display the first lines of a file")
 
 terminal.addFunction("whatis", function(rawArgs, funcInfo) {
@@ -1740,7 +1803,9 @@ terminal.addFunction("whatis", function(rawArgs, funcInfo) {
         let maxFuncLength = terminal.functions.reduce((p, c) => Math.max(p, c.name.length), 0)
         let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
         for (let func of functions) {
-            terminal.printLine(`${stringPadBack(func.name, maxFuncLength)}  ${func.description}`)
+            let funcStr = stringPadBack(func.name, maxFuncLength)
+            terminal.printCommand(funcStr, func.name, Color.WHITE, false)
+            terminal.printLine(`  ${func.description}`)
         }
         return
     }
@@ -1763,12 +1828,12 @@ const START_TIME = Date.now()
 
 terminal.addFunction("w", function() {
     terminal.printf`USER   TIME_ELAPSED\n`
-    terminal.printf`${{[Color.YELLOW]: "root"}}   ${{[Color.LIGHT_GREEN]: ((Date.now() - START_TIME) / 1000) + "s"}}\n`
+    terminal.printf`${{[Color.COLOR_1]: "root"}}   ${{[Color.LIGHT_GREEN]: ((Date.now() - START_TIME) / 1000) + "s"}}\n`
 }, "show the active users and their time elapsed")
 
 terminal.addFunction("history", function() {
     for (let i = Math.max(0, terminal.prevCommands.length - 1000); i < terminal.prevCommands.length; i++) {
-        terminal.printf`${{[Color.YELLOW]: stringPad(String(i + 1), 5)}}: ${{[Color.WHITE]: terminal.prevCommands[i]}}\n`
+        terminal.printf`${{[Color.COLOR_1]: stringPad(String(i + 1), 5)}}: ${{[Color.WHITE]: terminal.prevCommands[i]}}\n`
     }
 })
 
@@ -1793,8 +1858,16 @@ terminal.addFunction("lscpu", function() {
     terminal.printLine("your computer probably has a cpu!")
 }, "get some helpful info about your cpu")
 
-terminal.addFunction("kill", function() {
-    terminal.printLine("sorry no killing allowed here")
+terminal.addFunction("kill", function(rawArgs) {
+    if (rawArgs.trim().includes("turtlo")) {
+        if (killTurtlo()) {
+            terminal.printLine("done.")
+        } else {
+            terminal.printLine("i see no turtlo alive here")
+        }
+    } else {
+        terminal.printLine("sorry no killing allowed here (except turtlo)")
+    }
 }, "kill a process")
 
 terminal.addFunction("yes", async function(rawArgs) {
@@ -1821,7 +1894,7 @@ terminal.addFunction("zip", function() {
 }, "zip a file")
 
 terminal.addFunction("dir", function() {
-    terminal.printf`Why not use ${{[Color.YELLOW]: "ls"}}?\n`
+    terminal.printf`Why not use ${{[Color.COLOR_1]: "ls"}}?\n`
 }, "list the files in the current directory")
 
 terminal.addFunction("reverse", function(rawArgs) {
@@ -1903,10 +1976,14 @@ terminal.addFunction("cmatrix", async function(rawArgs) {
     }
 }, "feel cool, be hacker", true)
 
-terminal.addFunction("download", function(rawArgs) {
-    function downloadFile(fileName, content) {
+terminal.addFunction("download", function(_, funcInfo) {
+    function downloadFile(fileName, file) {
         let element = document.createElement('a')
-        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content))
+        if (file.type == FileType.DATA_URL)
+            var dataURL = file.content
+        else
+            var dataURL = 'data:text/plain;charset=utf-8,' + encodeURIComponent(file.content)
+        element.setAttribute('href', dataURL)
         element.setAttribute('download', fileName)
         element.style.display = 'none'
         document.body.appendChild(element)
@@ -1914,25 +1991,11 @@ terminal.addFunction("download", function(rawArgs) {
         document.body.removeChild(element)
     }
 
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 file name to download:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} download ${{[Color.YELLOW]: "<file_name>"}}'\n`
-        return
-    }
-
-    let openFileName = parsedArgs[0]
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && (file.type != FileType.FOLDER)) {
-            downloadFile(openFileName, file.content)
-            return
-        } else if (fileName == openFileName) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Cannot download Folder\n`
-            return
-        }
-    }
-    terminal.printLine(`${openFileName}: file not found`)
-    terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
+    let args = getArgs(funcInfo, ["file"])
+    let file = terminal.getFile(args.file)
+    if (file.type == FileType.FOLDER)
+        throw new Error("cannot download directory")
+    downloadFile(file.name, file)
 }, "download a local file")
 
 function fetchWithParam(url, params) {
@@ -2004,7 +2067,7 @@ terminal.addFunction("todo", async function(rawArgs) {
             }
             let maxItemLength = formattedData.reduce((max, item) => Math.max(max, item.item.length), 0)
             for (let item of formattedData) {
-                terminal.printf`${{[Color.YELLOW]: item.check}} ${{[Color.WHITE]: stringPadBack(item.item, maxItemLength + 1)}} ${{[Color.WHITE]: item.id}}\n`
+                terminal.printf`${{[Color.COLOR_1]: item.check}} ${{[Color.WHITE]: stringPadBack(item.item, maxItemLength + 1)}} ${{[Color.WHITE]: item.id}}\n`
             }
         },
         "check": async function(id) {
@@ -2034,11 +2097,11 @@ terminal.addFunction("todo", async function(rawArgs) {
     }
 
     function showAvailableCommand(command) {
-        terminal.printf`> '${{[Color.SWAMP_GREEN]: "$"}} todo ${{[Color.WHITE]: command}} ${{[Color.YELLOW]: command_args[command].map(a => `<${a}>`).join(" ")}}'\n`
+        terminal.printf`> '${{[Color.COLOR_2]: "$"}} todo ${{[Color.WHITE]: command}} ${{[Color.COLOR_1]: command_args[command].map(a => `<${a}>`).join(" ")}}'\n`
     }
 
     function showAvailableCommands() {
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} todo ${{[Color.YELLOW]: "<command> [args...]"}}':\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} todo ${{[Color.COLOR_1]: "<command> [args...]"}}':\n`
         for (let [command, _] of Object.entries(command_args)) {
             showAvailableCommand(command)
         }
@@ -2101,7 +2164,7 @@ terminal.addFunction("morse", async function(rawArgs) {
         D: "-..", E: ".", F: "..-.",
         G: "--.", H: "....", I: "..",
         J: ".---", K: "-.-", L: ".-..",
-        M: "--.", N: "-.", O: "---",
+        M: "--", N: "-.", O: "---",
         P: ".--.", Q: "--.-", R: ".-.",
         S: "...", T: "-", U: "..-",
         V: "...-", W: ".--", X: "-..-",
@@ -2212,7 +2275,7 @@ terminal.addFunction("ceasar", function(rawArgs, funcInfo) {
     let args = parseArgs(rawArgs, false)
     if (args.length != 2) {
         terminal.printLine(`You must supply 2 arguments:`)
-        terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} ceasar ${{[Color.YELLOW]: "<text> <shift-num>"}}'\n`
+        terminal.printf`'${{[Color.COLOR_2]: "$"}} ceasar ${{[Color.COLOR_1]: "<text> <shift-num>"}}'\n`
         return
     }
     let [text, maybeShiftVal] = args
@@ -2248,7 +2311,7 @@ terminal.addFunction("clock", async function(rawArgs) {
     let containerDiv = null
     function printGrid() {
         const customColors = {
-            "x": Color.YELLOW,
+            "x": Color.COLOR_1,
             "#": Color.WHITE,
             "w": Color.ORANGE,
             ".": Color.rgb(50, 50, 50),
@@ -2317,36 +2380,6 @@ terminal.addFunction("clock", async function(rawArgs) {
     }
 }, "display the current time")
 
-function playFrequency(f, ms, volume=0.5, destination=null) {
-    if (!audioContext) {
-        audioContext = new(window.AudioContext || window.webkitAudioContext)()
-        if (!audioContext)
-            throw new Error("Audio not supported here")
-    }
-
-    let oscillator = audioContext.createOscillator()
-    oscillator.type = "square"
-    oscillator.frequency.value = f
-
-    let gain = audioContext.createGain()
-    gain.connect(destination || audioContext.destination)
-    gain.gain.value = volume
-
-    oscillator.connect(gain)
-    oscillator.start(audioContext.currentTime)
-
-    oscillator.stop(audioContext.currentTime + ms / 1000)
-}
-
-terminal.addFunction("audiotest", function(rawArgs, funcInfo) {
-    let frequency = getSingleArg(rawArgs, funcInfo.funcName, "frequency")
-    if (!frequency) return
-    if (isNaN(frequency) || frequency < 0 || frequency > 50000) {
-        throw new Error("Invalid frequency!")
-    }
-    playFrequency(frequency, 100)
-}, "test a given audio frequency")
-
 terminal.addFunction("timer", async function(rawArgs, funcInfo) {
     let words = rawArgs.split(" ").filter(w => w.length > 0)
     let ms = 0
@@ -2361,15 +2394,20 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
             throw new Error(`Invalid time '${word}'`)
         }
     }
-    let startTime = Date.now()
+
     if (ms == 0) {
         terminal.printLine("An example time could be: '1h 30m 20s'")
         throw new Error("Invalid time!")
     }
 
     let notes = [[800, 1], [800, 1], [800, 1], [800, 1]]
+    let beep = [[400, 8]]
 
-    let melodiesFolder = getFolder(["noel", "melodies"])[0].content
+    try {
+        var melodiesFolder = getFolder(["noel", "melodies"])[0].content
+    } catch {
+        throw new Error("Melodys Folder not found!")
+    }
     let melodyNotes = []
     let i = 0
     for (let [fileName, file] of Object.entries(melodiesFolder)) {
@@ -2377,7 +2415,7 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
         try {
             melodyNotes.push(JSON.parse(file.content))
             i++
-            terminal.printf`${{[Color.YELLOW]: i}}: ${{[Color.WHITE]: melodyName}}\n`
+            terminal.printf`${{[Color.COLOR_1]: i}}: ${{[Color.WHITE]: melodyName}}\n`
         } catch {}
     }
 
@@ -2387,6 +2425,7 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
         notes = melodyNotes[tuneSelection - 1]
     }
 
+    let startTime = Date.now()
 
     function printStatus(width=50) {
         terminal.printLine()
@@ -2411,7 +2450,6 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
     }
 
     async function alarm() {
-        console.log(notes)
         await playMelody(notes)
     }
 
@@ -2425,6 +2463,9 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
         if (prevTextDiv) prevTextDiv.remove()
         prevTextDiv = textDiv
         terminal.scroll()
+        if (Date.now() - startTime - ms > -3500) {
+            await playMelody(beep)
+        }
         await sleep(1000)
     }
     if (prevTextDiv) prevTextDiv.remove()
@@ -2539,24 +2580,32 @@ terminal.addFunction("unhidebtns", function() {
     document.documentElement.style.setProperty("--terminal-btn-display", "block")
 }, "unhide the terminal buttons")
 
+function fileTooLargeWarning() {
+    terminal.print("Warning", Color.RED)
+    terminal.printLine(": File is too large to be saved locally.")
+    terminal.printLine("         Thus, it will disappear when reloading.")
+}
+
 terminal.addFunction("upload", async function() {
     try {
-        var [fileName, fileContent] = await fileFromUpload()
+        var [fileName, fileContent, isDataURL] = await fileFromUpload()
     } catch {
         throw new Error("File Upload Failed")
     }
     let fileType = FileType.READABLE
-    if (fileContent.length > 100000) {
-        throw new Error("File too large!")
-    }
     if (fileName.endsWith(".melody")) {
         fileType = FileType.MELODY
+    } else if (isDataURL) {
+        fileType = FileType.DATA_URL
     }
     if (fileExists(fileName)) {
         throw new Error("file already exists in folder")
     }
     terminal.currFolder.content[fileName] = new FileElement(fileType, fileContent, {})
-    terminal.printLine("success")
+    terminal.printLine("upload finished.")
+    if (fileContent.length > MAX_FILE_SIZE) {
+        fileTooLargeWarning()
+    }
 }, "upload a file")
 
 terminal.addFunction("letters", function(rawArgs) {
@@ -2627,3 +2676,128 @@ terminal.addFunction("letters", function(rawArgs) {
     }
     terminal.printLine(output)
 }, "draw the input in cool letters")
+
+terminal.addFunction("du", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["?folder"], {folder: null})
+    let fileNames = []
+    let fileSizes = []
+    let totalSize = 0
+    function getSizeStr(size) {
+        if (size < 10 ** 3) return `${size}B`
+        if (size < 10 ** 6) return `${Math.ceil(size / 1000)}KB`
+        return `${Math.ceil(size / 1000000)}MB`
+    }
+    let targetFolder = terminal.currFolder
+    if (args.folder) {
+        targetFolder = terminal.getFile(args.folder)
+    }
+    for (let [fileName, file] of Object.entries(targetFolder.content)) {
+        let fileContent = JSON.stringify(file.export())
+        totalSize += fileContent.length
+        let fileSize = getSizeStr(fileContent.length)
+        if (file.type == FileType.FOLDER)
+            fileName += "/"
+        fileNames.push(fileName)
+        fileSizes.push(fileSize)
+    }
+    fileNames.unshift("TOTAL")
+    fileSizes.unshift(getSizeStr(totalSize))
+    let longestSizeLength = fileSizes.reduce((a, e) => Math.max(a, e.length), 0) + 2
+    let paddedFileSizes = fileSizes.map(s => stringPadBack(s, longestSizeLength))
+    for (let i = 0; i < fileNames.length; i++) {
+        if (i == 0) {
+            terminal.print(paddedFileSizes[i] + fileNames[i] + "\n", Color.COLOR_1)
+        } else {
+            terminal.printLine(paddedFileSizes[i] + fileNames[i])
+        }
+    }
+    if (fileNames.length == 0) {
+        throw new Error("target-directory is empty")
+    }
+}, "display disk usage of current directory")
+
+terminal.addFunction("href", function(_, funcInfo) {
+    let args = getArgs(funcInfo, ["url"])
+    if (!args.url.startsWith("http")) args.url = "https://" + args.url
+    window.open(args.url, "_blank").focus()
+}, "open a link in another tab")
+
+terminal.addFunction("pv", async function(rawArgs) {
+    await terminal.animatePrint(rawArgs)
+})
+
+terminal.addFunction("cw", function(rawArgs, funcInfo) {
+    let args = getArgs(funcInfo, ["?date"], {date: null})
+    if (args.date == "today" || !args.date) {
+        args.date = "today"
+        const today = new Date()
+        var day = today.getDate()
+        var month = today.getMonth() + 1
+        var year = today.getFullYear()
+    } else if (!/^[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,4}$/.test(args.date)) {
+        throw new Error("Invalid date!")
+    } else {
+        var [day, month, year] = args.date.split(".").map(d => parseInt(d))
+    }
+
+    function getCalendarWeek(day, month, year, yearPlus=0) {
+        let firstDay = new Date()
+        firstDay.setFullYear(year, 0, 4)
+        while (firstDay.getDay() != 1) {
+            firstDay.setDate(firstDay.getDate() - 1)
+        }
+        let currDate = firstDay
+        let count = 1
+        while (currDate.getDate() != day
+        || currDate.getMonth() != (month - 1)
+        || currDate.getFullYear() != (year + yearPlus)
+        ) {
+            currDate.setDate(currDate.getDate() + 1)
+            count++
+            if (count > 400) {
+                return 0
+            }
+        }
+        return Math.ceil(count / 7)
+    }
+
+    let calendarWeek = getCalendarWeek(day, month, year)
+    let iterationCount = 0
+
+    while (calendarWeek == 0) {
+        iterationCount += 1
+        calendarWeek = getCalendarWeek(
+            day, month, year - iterationCount, iterationCount
+        )
+        if (iterationCount > 3)
+            throw new Error("Invalid day!")
+    }
+
+    terminal.printLine(`calenderweek of ${args.date}: ${calendarWeek}`)
+
+}, "get the calendar week for a given date")
+
+terminal.addFunction("donut", async function() {
+    // mostly copied from original donut.c code
+
+               let p=terminal.
+           print(),A=1,B=1,f=()=>{
+         let b=[];let z=[];A+=0.07;B
+       +=0.03;let s=Math.sin,c=Math.cos
+     ,cA=c(A),sA=s(A),cB=c(B),sB=s(B);for(
+    let k=0;k<1760;k++){b[k]=k%80==79?"\n":
+    " ";z[k]=0;};for        (let j=0;j<6.28;
+    j+=0.07){let ct          =c(j),st=s(j);
+    for(i=0;i<6.28;          i+=0.02){let sp
+    =s(i),cp=c(i),h          =ct+2,D=1/(sp*h
+    *sA+st*cA+5),t=sp       *h*cA-st*sA;let
+    x=0|(40+30*D*(cp*h*cB-t*sB)),y=0|(12+15
+     *D*(cp*h*sB+t*cB)),o=x+80*y,N=0|(8*((st
+     *sA-sp*ct*cA)*cB-sp*ct*sA-st*cA-cp*ct
+     *sB));if(y<22&&y>=0&&x>=0&&x<79&&D>z
+       [o]){z[o]=D;b[o]=".,-~:;=!*#$@"[
+          N>0?N:0];}}}p.innerHTML=b
+            .join("")};while(1){f();
+              await sleep(30);}
+
+}, "do the spinny donut.c")
