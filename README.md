@@ -26,11 +26,10 @@ The page is build to work like a Unix-Terminal, including:
   3. write js-code inside the editor, e.g. `console.log("Hello World!")`
   4. exit and save by hitting `Strg+S`
   5. execute your new script using `./main.js` or `run main.js`
-* plot your favorite equation using `plot e^x`
+* plot your favorite equation using `plot e^x` (and hear them!)
 * solve your favorite equation using `solve x*x=10`
 * feel like a hacker using `cmatrix`
 * let the cow say something using `cowsay`
-  * or let it think using `cowthink`
 * get my opinion of a programming language my typing its name into the terminal
 * convert a picture into ascii using `img2ascii`
 * set and get key-value pairs on the server using `set` and `get`
@@ -42,6 +41,13 @@ The page is build to work like a Unix-Terminal, including:
   * execute a command from your history using `!<index>`
 * spawn turtlo using `turtlo` and watch it do stuff
 * create melodys using the `melody` editor
+* see your favorite calendar using `cal`
+* convert your favorite image file to another format
+  1. upload the file using `upload`
+  2. convert it using `convert <filename>.<old_ending> <filename>.<new_ending>`
+  3. download it using `download <filename>.<new_ending>`
+* misspell `ls` as `sl`
+* calculate the derivative of `sin(x)` using `derivative sin(x)`
 
 ## Commands
 
