@@ -111,6 +111,7 @@ The following list can also be viewed using the `whatis *` command
 | `frequency`      | play a given frequency for a given amount of time  |
 | `get`            | get a value from the server                        |
 | `go`             | my evaluation of go (programming language)         |
+| `grep`           | search for a pattern in a file                     |
 | `groups`         | display the groups of a user                       |
 | `haskell`        | my evaluation of haskell (programming language)    |
 | `head`           | display the first lines of a file                  |
