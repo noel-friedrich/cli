@@ -62,6 +62,22 @@ class TerminalFunction {
         this.helpVisible = helpVisible
     }
 
+    async _rawRun(...params) {
+        try {
+            if (this.func.constructor.name == "AsyncFunction") {
+                var output = await this.func(...params)
+            } else {
+                var output = this.func(...params)
+            }
+            return output
+        } catch (e) {
+            if (e instanceof IntendedError) {} else {
+                terminal.printf`${{[Color.RED]: e.name}}: ${{[Color.WHITE]: e.message}}\n`
+                console.error(e)
+            }
+        }
+    }
+
     async run(...params) {
         COMMAND_RUNNING = true
         try {
@@ -240,7 +256,15 @@ function getArgs(funcInfo, args, standardVals) {
         throw new IntendedError()
     }
 
-    if (parsedArgs.length > parsedExpected.length && !parsedExpectedOptions[parsedExpectedOptions.length - 1].expanding)
+    let lastOption = null
+    for (let i = parsedExpected.length - 1; i >= 0; i--) {
+        if (!parsedExpectedOptions[i].optional) {
+            lastOption = parsedExpectedOptions[i]
+            break
+        }
+    }
+
+    if (parsedArgs.length > parsedExpected.length && (lastOption && !lastOption.expanding))
         error()
 
     for (let i = 0; i < parsedExpected.length; i++) {
@@ -312,7 +336,7 @@ function getArgs(funcInfo, args, standardVals) {
     return outputArgs
 }
 
-const namedArgRegex = /^(?:\-{2}[a-zA-Z][a-zA-Z0-9\-\_]*)|(?:\-{1}[a-zA-Z])$/
+const namedArgRegex = /^(?:\-{2}[a-zA-Z][a-zA-Z0-9\-\_]*)|(?:\-{1}[a-zA-Z]+)$/
 
 function extractNamedArgs(argStr) {
     let parsedArgs = parseArgs(argStr, false)
@@ -322,10 +346,18 @@ function extractNamedArgs(argStr) {
             let argName = String(arg)
                 .split("").reverse().join("").split("-")[0]
                 .split("").reverse().join("")
+            
             let argValue = parsedArgs[parsedArgs.indexOf(arg) + 1]
             if (!argValue) argValue = true
             if (namedArgRegex.test(argValue)) argValue = true
-            namedArgs[argName] = argValue
+            if (arg.startsWith("-") && !arg.startsWith("--")) {
+                for (let i = 0; i < argName.length; i++) {
+                    let char = argName[i]
+                    namedArgs[char] = true
+                }
+            } else {
+                namedArgs[argName] = argValue
+            }
         }
     }
     return namedArgs
@@ -600,6 +632,25 @@ class Terminal {
     addFunction(funcName, func, funcDescription, helpVisible) {
         let terminalFunc = new TerminalFunction(
             this, funcName, funcDescription, func, helpVisible
+        )
+        this.functions.push(terminalFunc)
+        return terminalFunc
+    }
+
+    // same as addFunction but with argument support built-in
+    addCommand(funcName, func, funcInfo) {
+        let helpVisible = funcInfo.helpVisible ?? true
+        let funcDescription = funcInfo.description ?? undefined
+        let funcArgs = funcInfo.args ?? []
+        let standardVals = funcInfo.standardVals ?? {}
+        let terminalFunc = new TerminalFunction(
+            this, funcName, funcDescription, async (_, funcInfo) => {
+                let args = getArgs(funcInfo, funcArgs, standardVals)
+                let innerTerminalFunc = new TerminalFunction(
+                    this, funcName, funcDescription, func, helpVisible
+                )
+                await innerTerminalFunc._rawRun(args)
+            }, helpVisible
         )
         this.functions.push(terminalFunc)
         return terminalFunc
@@ -946,7 +997,7 @@ class Terminal {
         this.rootFolder.updatePaths()
     }
 
-    getFile(path, fileType=null, printError=true) {
+    getFile(path, fileType=null, printError=true, targetFolder=null) {
         function notFoundError() {
             if (printError) {
                 terminal.printError(`File not found "${path}"`)
@@ -979,7 +1030,7 @@ class Terminal {
 
             throw new IntendedError()
         }
-        let currFile = this.currFolder
+        let currFile = targetFolder ?? this.currFolder
         for (let item of strToPath(path)) {
             if (currFile.type == FileType.FOLDER) {
                 if (item in currFile.content) {
