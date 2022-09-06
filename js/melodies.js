@@ -1,10 +1,112 @@
+async function playFrequency(f, ms, volume=0.5, destination=null, returnSleep=true) {
+    if (!audioContext) {
+        audioContext = new(window.AudioContext || window.webkitAudioContext)()
+        if (!audioContext)
+            throw new Error("Browser doesn't support Audio")
+    }
+
+    let oscillator = audioContext.createOscillator()
+    oscillator.type = "square"
+    oscillator.frequency.value = f
+
+    let gain = audioContext.createGain()
+    gain.connect(destination || audioContext.destination)
+    gain.gain.value = volume
+
+    oscillator.connect(gain)
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + ms / 1000)
+
+    if (returnSleep)
+        return sleep(ms)
+}
+
+async function playFrequencyRamp(f0, f1, ms, volume=0.5, destination=null, returnSleep=true) {
+    if (!audioContext) {
+        audioContext = new(window.AudioContext || window.webkitAudioContext)()
+        if (!audioContext)
+            throw new Error("Browser doesn't support Audio")
+    }
+
+    const endTime = audioContext.currentTime + ms / 1000
+
+    let oscillator = audioContext.createOscillator()
+    oscillator.type = "square"
+    oscillator.frequency.value = f0
+    oscillator.frequency.linearRampToValueAtTime(f1, endTime)
+
+    let gain = audioContext.createGain()
+    gain.connect(destination || audioContext.destination)
+    gain.gain.value = volume
+
+    oscillator.connect(gain)
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(endTime)
+
+    if (returnSleep)
+        return sleep(ms)
+}
+
 async function playMelody(notes, destination=null) {
-    for (let i = 0; i < notes.length; i++) {
-        let [f, t] = notes[i]
-        let ms = 256000 / (Math.abs(t) * 100)
-        if (t < 0) ms *= 1.5
-        playFrequency(f, ms, 0.5, destination)
-        await sleep(ms)
+    if (notes.fileType == "madeMelody") {
+        playFrequency(0, 0)
+        const frequencies = notes.freq
+        const msPerNote = notes.msPerNote
+        notes = notes.notes.split("\n").map(function(n) {
+            let items = n.split(",")
+            return {
+                startFrequency: frequencies[items[0]],
+                endFrequency: frequencies[items[1]],
+                durationNotes: items[2],
+                startNote: items[3],
+                startTime: msPerNote * items[3],
+                durationMs: items[2] * msPerNote,
+                endTime: (msPerNote * items[3]) + items[2] * msPerNote
+            }
+        })
+        let timeouts = []
+        for (let note of notes) {
+            timeouts.push(setTimeout(function() {
+                if (note.startFrequency == note.endFrequency) {
+                    playFrequency(
+                        note.startFrequency,
+                        note.durationMs,
+                        0.5, destination, false
+                    )
+                } else {
+                    playFrequencyRamp(
+                        note.startFrequency,
+                        note.endFrequency,
+                        note.durationMs,
+                        0.5, destination, false
+                    )
+                }
+            }, note.startTime))
+        }
+        addEventListener("keydown", function(event) {
+            if (timeouts.length == 0) return
+            if (event.key == "c" && event.ctrlKey) {
+                if (timeouts.length > 0) {
+                    for (let timeout of timeouts) {
+                        clearTimeout(timeout)
+                    }
+                    timeouts = []
+                }
+            }
+        })
+        let notesCopy = [...notes]
+        notesCopy.sort((a, b) => a.endTime - b.endTime)
+        let totalTime = notesCopy.slice(-1)[0].endTime
+        let startTime = Date.now()
+        while ((Date.now() - startTime) < totalTime)
+            await sleep(100)
+    } else {
+        for (let i = 0; i < notes.length; i++) {
+            let [f, t] = notes[i]
+            let ms = 256000 / (Math.abs(t) * 100)
+            if (t < 0) ms *= 1.5
+            await playFrequency(f, ms, 0.5, destination)
+        }
     }
 }
 
@@ -168,31 +270,17 @@ async function playMelody(notes, destination=null) {
     MELODIES_FOLDER.content["favorite-song.melody"] = makeMelodyFile(FAVORITE_SONG_TUNES)
     MELODIES_FOLDER.content["frequencies.melody"] = makeMelodyFile(FREQUENCY_TEST_TUNES)
 
-    terminal.addFunction("play", async function(rawArgs) {
-        let parsedArgs = parseArgs(rawArgs)
-        if (parsedArgs.length != 1) {
-            terminal.printLine(`You must supply 1 file name to open:`)
-            terminal.printf`'${{[Color.SWAMP_GREEN]: "$"}} play ${{[Color.YELLOW]: "<file_name>"}}'\n`
-            return
+    terminal.addFunction("play", async function(_, funcInfo) {
+        let args = getArgs(funcInfo, ["file"])
+        let file = terminal.getFile(args.file)
+        if (file.type != FileType.MELODY)
+            throw new Error("File must be of type MELODY")
+        try {
+            var tunes = JSON.parse(file.content)
+        } catch {
+            throw new Error("Melody corrupted")
         }
-
-        let openFileName = parsedArgs[0]
-        for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-            if (fileName == openFileName && (file.type == FileType.MELODY)) {
-                try {
-                    let tunes = JSON.parse(file.content)
-                    await playMelody(tunes)
-                } catch (e) {
-                    throw new Error("Melody corrupted")
-                }
-                return
-            } else if (fileName == openFileName) {
-                terminal.printf`${{[Color.RED]: "Error"}}: File is not MELODY\n`
-                return
-            }
-        }
-        terminal.printLine(`${openFileName}: file not found`)
-        terminal.printf`Use ${{[Color.YELLOW]: "ls"}} to view available files\n`
+        await playMelody(tunes)
     }, "play a .melody file")
 
     terminal.addFunction("frequency", async function(rawArgs) {
@@ -207,308 +295,368 @@ async function playMelody(notes, destination=null) {
         await playFrequency(frequency, ms, 1.)
     }, "play a given frequency for a given amount of time")
 
-    let melodySaved = false
+    function makeMelodyEditor(tunes) {
+        let melodyLength = 100
+        let noteFrequencies = [262, 294, 330, 349, 392, 440, 494].reverse()
+        let msPerNote = 150
+        const guideLineSpace = 50
+        const noteLineColor = "black"
+        const canvasWidthPx = () => guideLineSpace * (melodyLength + 1)
+        const totalLengthMs = () => melodyLength * msPerNote
+        const startTime = Date.now()
 
-    function makeMelodyEditor(melodyLength=100) {
-        melodySaved = false
-        let canvasWidthPx = melodyLength * 80
-        if (canvasWidthPx < window.innerWidth)
-            canvasWidthPx = window.innerWidth
-        const CANVAS = document.createElement("canvas")
-        CANVAS.style.width = canvasWidthPx + "px"
-        CANVAS.style.height = "100%"
+        const [CANVAS, CONTEXT] = makeNewWindow()
+        CANVAS.style.background = "white"
+        CANVAS.style.width = canvasWidthPx() + "px"
+        CANVAS.width = canvasWidthPx()
         CANVAS.style.position = "absolute"
-        CANVAS.style.top = "0"
-        CANVAS.style.left = "0"
-        CANVAS.style.zIndex = "10000"
-        CANVAS.style.backgroundColor = "black"
-        document.body.appendChild(CANVAS)
-        const CONTEXT = CANVAS.getContext("2d")
-        CANVAS.width = canvasWidthPx
-        CANVAS.height = window.innerHeight
-        CONTEXT.font = "15px Courier New"
-        let CHARWIDTH = CONTEXT.measureText("A").width * 1.8
-    
-        function drawChar(x, y, char, color="#348d36") {
-            CONTEXT.fillStyle = color
-            CONTEXT.fillText(char, x - (x % CHARWIDTH), y - (y % 20))
-        }
-
-        function drawLine(x0, y0, x1, y1, char, color="#348d36") {
-            const xDiff = x1 - x0
-            const yDiff = y1 - y0
-            function pointOnLine(t) {
-                let x = (x0 + xDiff * t)
-                let y = (y0 + yDiff * t)
-                return [x, y]
-            }
-            let stepSize = 1 / ((xDiff + yDiff) / CHARWIDTH)
-            for (let t = 0; t < 1; t += stepSize) {
-                let [x, y] = pointOnLine(t)
-                drawChar(x, y, char, color)
-            }
-        }
-
-        function clearCanvas() {
-            CONTEXT.clearRect(0, 0, CANVAS.width, CANVAS.height)
-        }
-
-        function exportTunes() {
-            let values = []
-            for (let i = 0; i < melodyLength; i++) {
-                let frequency = 0
-                let foundNote = null
-                for (let note of notes) {
-                    if (note.guideLineIndex == i) {
-                        frequency = note.f
-                        foundNote = note
-                        break
-                    }
-                }
-                if (foundNote) {
-                    values.push([frequency, 2560 / foundNote.length])
-                    values.push([0, 2560 / (300 - foundNote.length)])
-                } else {
-                    values.push([0, 8.53])
-                }
-            }
-            return values
-        }
-
-        let IN_SAVING = false
-
-        async function save() {
-            IN_SAVING = true
-            CANVAS.remove()
-            clearInterval(intervalFunc)
-            let melodyName = await terminal.prompt("What do you want to call your melody? ")
-
-            while (!/^[a-zA-Z0-9_\-]{1,20}$/.test(melodyName) || fileExists(melodyName + ".melody")) {
-                terminal.printLine("Invalid Name! (special chars or already exists)")
-                melodyName = await terminal.prompt("What do you want to call your melody? ")
-            }
-
-            let file = makeMelodyFile(exportTunes())
-            let fileName = melodyName + ".melody"
-            getFolder(["noel", "melodies"])[0].content[fileName] = file
-            melodySaved = true
-            
-            terminal.printf`Saved to ${{[Color.YELLOW]: "home/noel/melodies/" + fileName}}\n`
-        }
-    
-        addEventListener("resize", function() {
-            CANVAS.height = window.innerHeight
-            CHARWIDTH = CONTEXT.measureText("A").width * 1.5
-            CONTEXT.font = "15px Courier New"
-        })
-
-        addEventListener("keydown", function(event) {
-            if (IN_SAVING) return
-            if (event.ctrlKey && event.key == "z") {
-                notes.pop()
-            }
-            if (event.ctrlKey && event.key == "s") {
-                event.preventDefault()
-                save()
-            }
-            if (event.ctrlKey && event.key == "c") {
-                IN_SAVING = true
-                return
-            }
-            if (event.key == "+") {
-                melodyLength = Math.min(melodyLength + 1, 100)
-                event.preventDefault()
-            } else if (event.key == "-") {
-                melodyLength = Math.max(melodyLength - 1, 5)
-                event.preventDefault()
-            }
-            amountGuideLines = melodyLength
-            guideLineDiff = 1 / (melodyLength + 1)
-            canvasWidthPx = melodyLength * 80
-            if (canvasWidthPx < window.innerWidth)
-                canvasWidthPx = window.innerWidth
-            CANVAS.style.width = canvasWidthPx + "px"
-            CANVAS.width = canvasWidthPx
-            intervalLength = melodyLength * 300
-        })
-
-        let intervalLength = melodyLength * 300
-        let startTime = Date.now()
-
-        let amountGuideLines = melodyLength
-        let guideLineDiff = 1 / (amountGuideLines + 1)
-        
-        function guideLinePos(guideLineIndex) {
-            return guideLineDiff * (1 + guideLineIndex) * CANVAS.width
-        }
-
-        let musicLines = [
-            [0.125, 262], [0.25, 294], [0.375, 330], [0.5, 349],
-            [0.625, 392], [0.75, 440], [0.875, 494]
-        ]
-
-        function currLinePos() {
-            return (((Date.now() - startTime) % intervalLength) / intervalLength)
-        }
-
-        class Note {
-
-            constructor(lineIndex, guideLineIndex) {
-                this.guideLineIndex = guideLineIndex
-                this.lineIndex = lineIndex
-                this.length = 100
-                this.f = musicLines[lineIndex][1]
-                if (this.x > currLinePos()) {
-                    this.play()
-                    this.played = false
-                }
-            }
-
-            get x() {
-                return guideLinePos(this.guideLineIndex) / CANVAS.width
-            }
-
-            draw() {
-                drawChar(
-                    CANVAS.width * this.x,
-                    CANVAS.height * musicLines[this.lineIndex][0],
-                    "X", Color.LIGHT_GREEN
-                )
-            }
-
-            play() {
-                if (this.played) return
-                playFrequency(this.f, this.length)
-                this.played = true
-            }
-
-            resetPlayed() {
-                this.played = false
-            }
-
-        }
 
         let notes = []
 
-        CANVAS.onclick = function(event) {
-            let boundingRect = CANVAS.getBoundingClientRect()
-            let mouseX = event.clientX - boundingRect.left
-            let mouseY = event.clientY - boundingRect.top
-            let mouseXFactor = mouseX / CANVAS.width
-            let mouseYFactor = mouseY / CANVAS.height
+        class Note {
 
-            let nearestMusicLine = null
-            let smallestHeightDiff = Infinity
-            for (let musicLine of musicLines) {
-                let [heightFactor, f] = musicLine
-                let heightDiff = Math.abs(heightFactor - mouseYFactor)
-                if (heightDiff < smallestHeightDiff) {
-                    smallestHeightDiff = heightDiff
-                    nearestMusicLine = musicLine
+            constructor(startFrequency, endFrequency, durationNotes, startNote) {
+                this.startFrequency = startFrequency
+                this.endFrequency = endFrequency
+                this.durationNotes = durationNotes
+                this.startNote = startNote
+                this.played = this.startX < calcLineX()
+            }
+
+            get color() {
+                let total = noteFrequencies.length
+                let deg = `${Math.round(this.startFrequencyIndex / total * 360)}deg`
+                return `hsla(${deg}, 100%, 50%, .5)`
+            }
+
+            get startX() {
+                return CANVAS.width / (melodyLength + 1) * this.startNote
+            }
+
+            get durationMs() {
+                return this.durationNotes * msPerNote
+            }
+
+            get startFrequencyIndex() {
+                let index = noteFrequencies.indexOf(this.startFrequency)
+                if (index === -1) throw new Error("Invalid Frequency!")
+                return index
+            }
+
+            get endFrequencyIndex() {
+                let index = noteFrequencies.indexOf(this.endFrequency)
+                if (index === -1) throw new Error("Invalid Frequency!")
+                return index
+            }
+
+            get startPos() {
+                let x = this.startNote / (melodyLength + 1) * CANVAS.width
+                let y = (this.startFrequencyIndex + 1) / (noteFrequencies.length + 1) * CANVAS.height
+                return [x, y]
+            }
+
+            get endNote() {
+                return this.startNote + this.durationNotes
+            }
+
+            get endPos() {
+                let x = this.endNote / (melodyLength + 1) * CANVAS.width
+                let y = (this.endFrequencyIndex + 1) / (noteFrequencies.length + 1) * CANVAS.height
+                return [x, y]
+            }
+
+            get isTransition() {
+                return this.startFrequency != this.endFrequency
+            }
+
+            draw(color=null) {
+                const [startX, startY] = this.startPos
+                const [endX, endY] = this.endPos
+                const r = 20
+                drawThickLine(startX + r, startY, endX - r, endY, r, color || this.color)
+            }
+
+            eq(otherNote) {
+                return (
+                    this.startFrequency == otherNote.startFrequency &&
+                    this.endFrequency == otherNote.endFrequency &&
+                    this.durationNotes == otherNote.durationNotes && 
+                    this.startNote == otherNote.startNote
+                )
+            }
+
+            export() {
+                let freqStr = `${this.startFrequencyIndex},${this.endFrequencyIndex}`
+                return `${freqStr},${this.durationNotes},${this.startNote}`
+            }
+
+            async play() {
+                if (this.played) return
+                this.played = true
+                if (this.isTransition) {
+                    playFrequencyRamp(
+                        this.startFrequency,
+                        this.endFrequency,
+                        this.durationMs
+                    )
+                } else {
+                    playFrequency(this.startFrequency, this.durationMs)
                 }
             }
 
-            let nearestGuideLine = null
-            let smallestWidthDiff = Infinity
-            for (let i = 0; i < amountGuideLines; i++) {
-                let guideLineX = guideLinePos(i)
-                let widthDiff = Math.abs(guideLineX - mouseX)
-                if (widthDiff < smallestWidthDiff) {
-                    smallestWidthDiff = widthDiff
-                    nearestGuideLine = i
-                }
+            static fromMousePos(x, y) {
+                let frequencyIndex = Math.round(y / (CANVAS.height / (noteFrequencies.length + 1)))
+                let startNote = Math.floor(x / (CANVAS.width / (melodyLength + 1)))
+                frequencyIndex = Math.max(1, Math.min(frequencyIndex, noteFrequencies.length))
+                let frequency = noteFrequencies[frequencyIndex - 1]
+                return new Note(frequency, frequency, 1, startNote)
             }
 
-            let note = new Note(
-                musicLines.indexOf(nearestMusicLine),
-                nearestGuideLine
-            )
-
-            for (let i = 0; i < notes.length; i++) {
-                if (notes[i].guideLineIndex == note.guideLineIndex) {
-                    if (notes[i].lineIndex == note.lineIndex) {
-                        notes.splice(i, 1)
-                        return
-                    }
-                    notes.splice(i, 1)
-                    break
-                }
-            }
-
-            notes.push(note)
         }
 
-        let prevXFactor = null
+        if (tunes) {
+            msPerNote = tunes.msPerNote
+            noteFrequencies = tunes.freq
+            let noteLines = tunes.notes.split("\n")
+            for (let line of noteLines) {
+                let values = line.split(",")
+                notes.push(new Note(
+                    noteFrequencies[values[0]],
+                    noteFrequencies[values[1]],
+                    parseInt(values[2]), parseInt(values[3])
+                ))
+            }
+        }
 
-        let intervalFunc = setInterval(function() {
-            clearCanvas()
-
-            let xFactor = currLinePos()
-            if (xFactor < prevXFactor) {
-                for (let note of notes) {
-                    note.resetPlayed()
+        function updateMelodyLength() {
+            let windowNoteWidth = Math.ceil(window.innerWidth / CANVAS.width * melodyLength * 0.5)
+            let latestNote = 0
+            for (let note of notes) {
+                if (note.endNote > latestNote) {
+                    latestNote = note.endNote
                 }
             }
-            prevXFactor = xFactor
-            let x = CANVAS.width * xFactor
+            let newMelodyLength = Math.max(windowNoteWidth * 2, latestNote + windowNoteWidth)
+            if (newMelodyLength != melodyLength) {
+                melodyLength = newMelodyLength
+                CANVAS.style.width = canvasWidthPx() + "px"
+                CANVAS.width = canvasWidthPx()
+            }
+        }
 
-            let lineColor = Color.rgb(80, 80, 80)
+        updateMelodyLength()
 
-            for (let i = 0; i < amountGuideLines; i++) {
-                let x = guideLinePos(i)
-                drawLine(x, 0, x, CANVAS.height, "|", lineColor)
+        addEventListener("resize", function() {
+            CANVAS.width = canvasWidthPx()
+            CANVAS.style.width = canvasWidthPx()
+        })
+
+        function drawThickLine(x0, y0, x1, y1, r=10, color="blue") {
+            const xDiff = x1 - x0
+            const yDiff = y1 - y0
+            const angle = Math.atan2(yDiff, xDiff)
+
+            function movePoint(x, y, angle, distance=r) {
+                return [
+                    x + Math.cos(angle) * distance,
+                    y + Math.sin(angle) * distance
+                ]
             }
 
-            for (let musicLine of musicLines) {
-                let [heightFactor, f] = musicLine
-                let y = CANVAS.height * heightFactor
-                drawLine(0, y, CANVAS.width, y, "-", lineColor)
+            // p1 ----------- p3
+            //  |             |
+            //  |             |
+            // p2 ----------- p4
+
+            const [p1x, p1y] = movePoint(x0, y0, angle - Math.PI / 2)
+            const [p3x, p3y] = movePoint(x1, y1, angle - Math.PI / 2)
+            const [p4x, p4y] = movePoint(x1, y1, angle + Math.PI / 2)
+
+            CONTEXT.beginPath()
+            CONTEXT.moveTo(p1x, p1y)
+            CONTEXT.arc(x0, y0, r, angle - Math.PI / 2, angle + Math.PI / 2, true)
+            CONTEXT.lineTo(p4x, p4y)
+            CONTEXT.arc(x1, y1, r, angle - Math.PI / 2, angle + Math.PI / 2)
+            CONTEXT.lineTo(p3x, p3y)
+            CONTEXT.closePath()
+            CONTEXT.fillStyle = color
+            CONTEXT.fill()
+        }
+
+        function calcLineX() {
+            const msPassed = (Date.now() - startTime) % totalLengthMs()
+            return (msPassed / totalLengthMs()) * CANVAS.width
+        }
+
+        let dragTempNote = null
+        let hoverTempNote = null
+
+        function posFromMouseEvent(event) {
+            const rect = CANVAS.getBoundingClientRect()
+            return [
+                event.clientX - rect.left,
+                event.clientY - rect.top
+            ]
+        }
+
+        function updateDragTempNote(event) {
+            let [posX, posY] = posFromMouseEvent(event)
+            const newDragTempNote = Note.fromMousePos(posX, posY)
+            dragTempNote.endFrequency = newDragTempNote.endFrequency
+            let duration = Math.max(1, newDragTempNote.startNote - dragTempNote.startNote)
+            dragTempNote.durationNotes = duration
+        }
+
+        function exportMelody() {
+            let notesCopy = [...notes]
+            notesCopy.sort((a, b) => a.startNote - b.startNote)
+            let notesData = notesCopy.map(n => n.export()).join("\n")
+            return JSON.stringify({
+                freq: noteFrequencies,
+                msPerNote: msPerNote,
+                notes: notesData,
+                fileType: "madeMelody"
+            })
+        }
+
+        function saveMelody(event) {
+            melodyEditorStopped = new FileElement(
+                FileType.MELODY,
+                exportMelody(),
+                {}
+            )
+        }
+
+        addEventListener("keydown", function(event) {
+            if (event.key == "z" && event.ctrlKey) {
+                notes.pop()
+                event.preventDefault()
+            } else if (event.key == "s" && event.ctrlKey) {
+                saveMelody()
+                CANVAS.remove()
+                clearInterval(intervalFunc)
+                event.preventDefault()
             }
+        })
 
-            drawLine(x, 0, x, CANVAS.height, "#", Color.LIGHT_RED)
+        CANVAS.onmousedown = function(event) {
+            let [posX, posY] = posFromMouseEvent(event)
+            dragTempNote = Note.fromMousePos(posX, posY)
+            hoverTempNote = null
+        }
 
+        CANVAS.onmousemove = function(event) {
+            if (dragTempNote != null)
+                updateDragTempNote(event)
+            else {
+                let [posX, posY] = posFromMouseEvent(event)
+                hoverTempNote = Note.fromMousePos(posX, posY)
+            }
+        }
+
+        CANVAS.onmouseup = function(event) {
+            if (dragTempNote != null) {
+                updateDragTempNote(event)
+                let duplicateNote = notes.find(n => n.eq(dragTempNote))
+                if (duplicateNote) {
+                    let indexOfDuplicate = notes.indexOf(duplicateNote)
+                    notes.splice(indexOfDuplicate, 1)
+                    updateMelodyLength()
+                } else {
+                    notes.push(dragTempNote)
+                    updateMelodyLength()
+                }
+            }
+            dragTempNote = null
+        }
+
+        function drawNoteLines() {
+            const yStep = CANVAS.height / (noteFrequencies.length + 1)
+            for (let y = yStep; y < CANVAS.height; y += yStep) {
+                drawThickLine(0, y, CANVAS.width, y, 2, noteLineColor)
+            }
+        }
+
+        function drawNotes() {
             for (let note of notes) {
                 note.draw()
-                if (note.x < xFactor) {
-                    note.play()
-                }
+            }
+            if (dragTempNote != null) {
+                dragTempNote.draw()
+            }
+            if (hoverTempNote) {
+                hoverTempNote.draw("rgba(0, 0, 0, 0.25)")
+            }
+        }
+
+        function resetNotes() {
+            for (let note of notes) {
+                note.played = false
+            }
+        }
+
+        let prevLineX = null
+
+        let intervalFunc = setInterval(function() {
+            CONTEXT.clearRect(0, 0, CANVAS.width, CANVAS.height)
+            const lineX = calcLineX()
+            if (prevLineX > (lineX + 100))
+                resetNotes()
+            prevLineX = lineX
+            drawNoteLines()
+            drawNotes()
+            drawThickLine(lineX, 0, lineX, CANVAS.height, 10, "rgba(255, 0, 0, 0.5)")
+
+            for (let note of notes.filter(n => !n.played && n.startX < lineX)) {
+                note.play()
             }
         }, 10)
 
         return [CANVAS, intervalFunc]
     }    
 
-    terminal.addFunction("melody", async function() {
-        terminal.printf`Welcome to the ${{[Color.YELLOW]: "MelodyMaker"}}!\n`
-        let melodyLength = 10
-        await terminal.animatePrint("To use the Melody Music Maker, click on a line to")
-        await terminal.animatePrint("add a note to it. The red line will activate the notes")
-        await terminal.animatePrint("it crosses. Delete the note by clicking it again.")
-        await terminal.animatePrint("To add room for more notes, click \"+\" on your keyboard, ")
-        await terminal.animatePrint("to remove room use \"-\". Have fun!")
+    let melodyEditorStopped = false
+
+    terminal.addFunction("melody", async function(_, funcInfo) {
+        if (isMobile) {
+            throw new Error("Command not available on mobile!")
+        }
+        let args = getArgs(funcInfo, ["?file"], {file: null})
+        let tunes = null
+        if (args.file) {
+            let file = terminal.getFile(args.file)
+            tunes = JSON.parse(file.content)
+        }
+        terminal.printLine("Click on the lines to add notes!")
         await sleep(1000)
-        terminal.printf`Add note space using ${{[Color.YELLOW]: "+"}}\n`
-        await sleep(1000)
-        terminal.printf`Remove note space using ${{[Color.YELLOW]: "-"}}\n`
-        await sleep(1000)
-        terminal.printf`Exit anytime using ${{[Color.YELLOW]: "Ctrl+C"}}\n`
-        await sleep(1000)
-        terminal.printf`Save anytime using ${{[Color.YELLOW]: "Ctrl+S"}}\n`
-        await sleep(2000)
-        terminal.printf`Starting Melody-Maker...`
-        await sleep(2000)
-        let [canvas, intervalFunc] = makeMelodyEditor(melodyLength)
-        let stopped = false
+        let [canvas, intervalFunc] = makeMelodyEditor(tunes)
+        melodyEditorStopped = false
         document.addEventListener("keydown", function(e) {
             if (e.ctrlKey && e.key.toLowerCase() == "c") {
                 canvas.remove()
-                stopped = true
                 clearInterval(intervalFunc)
             }
         })
-        while (!stopped && !melodySaved) {
+        while (!melodyEditorStopped) {
             await sleep(100)
         }
+        let fileName = await terminal.prompt("What do you want to call your melody? ")
+        let validNameFound = false
+        while (!validNameFound) {
+            if (!fileExists(fileName + ".melody")
+            && /[a-zA-Z0-9\_\-\~]{3,20}/.test(fileName))
+                break
+            if (terminal.fileExists(fileName + ".melody")) {
+                terminal.printError("File with that name already exists!")
+            } else {
+                terminal.printError("Invalid name! (too short?) (invalid characters?)")
+            }
+            fileName = await terminal.prompt("What do you want to call your melody? ")
+        }
+        terminal.currFolder.content[fileName + ".melody"] = melodyEditorStopped
+        terminal.print("Saved ")
+        terminal.updateFileSystem()
+        terminal.printLine(melodyEditorStopped.path, Color.COLOR_1)
     }, "open the melody-maker")
 
     terminal.addFunction("exportmelody", async function(rawArgs) {
