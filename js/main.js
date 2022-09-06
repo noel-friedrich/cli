@@ -33,7 +33,24 @@ class Color {
     static PURPLE = Color.rgb(79, 79, 192)
     static LIGHT_GREEN = Color.rgb(129, 255, 129)
     static LIGHT_RED = Color.hex("f56a6a")
+
+    static get COLOR_1() {
+        return "var(--accent-color-1)"
+    }
+
+    static get COLOR_2() {
+        return "var(--accent-color-2)"
+    }
 }
+
+class IntendedError extends Error {
+    constructor(message) {
+        super(message)
+        this.name = "IntendedError"
+    }
+}
+
+let COMMAND_RUNNING = false
 
 class TerminalFunction {
 
@@ -46,6 +63,7 @@ class TerminalFunction {
     }
 
     async run(...params) {
+        COMMAND_RUNNING = true
         try {
             if (this.func.constructor.name == "AsyncFunction") {
                 var output = await this.func(...params)
@@ -56,15 +74,48 @@ class TerminalFunction {
                 this.terminal.finishFunction()
             return output
         } catch (e) {
-            let [e1, e2] = String(e).split(": ")
-            terminal.printf`${{[Color.RED]: e1}}: ${{[Color.WHITE]: e2}}\n`
+            if (e instanceof IntendedError) {} else {
+                terminal.printf`${{[Color.RED]: e.name}}: ${{[Color.WHITE]: e.message}}\n`
+                console.error(e)
+            }
             this.terminal.finishFunction()
         }
     }
 
 }
 
+class JsEnvironment {
+    constructor() {
+        this.iframe = document.createElement("iframe")
+        this.iframe.style.display = "none"
+        document.body.appendChild(this.iframe)
+        this.document = this.iframe.contentDocument || this.iframe.contentWindow.document
+    }
+
+    eval(code) {
+        try {
+            let evaluation = this.iframe.contentWindow.eval(code)
+            return [evaluation, null]
+        } catch (e) {
+            return [null, `${e.name}: ${e.message}`]
+        }
+    }
+
+    getVars() {
+        return this.iframe.contentWindow
+    }
+
+    getValue(name) {
+        return this.getVars()[name]
+    }
+
+    setValue(name, value) {
+        this.getVars()[name] = value
+    }
+}
+
 function stringMul(str, n) {
+    str = String(str)
     let out = ""
     for (let i = 0; i < n; i++)
         out += str
@@ -72,6 +123,7 @@ function stringMul(str, n) {
 }
 
 function stringPad(str, l, padStr=" ") {
+    str = String(str)
     while (str.length < l) {
         str = padStr + str
     }
@@ -79,13 +131,12 @@ function stringPad(str, l, padStr=" ") {
 }
 
 function stringPadBack(str, l, padStr=" ") {
+    str = String(str)
     while (str.length < l) {
         str = str + padStr
     }
     return str
 }
-
-let isWaiting = false
 
 function parseArgs(argStr, ignoreNamed=true) {
     let args = Array()
@@ -108,7 +159,7 @@ function parseArgs(argStr, ignoreNamed=true) {
     args = args.filter(a => a != "")
     if (ignoreNamed) {
         for (let i = 0; i < args.length; i++) {
-            if (args[i].startsWith("-")) {
+            if (namedArgRegex.test(args[i])) {
                 args.splice(i, 1)
                 args.splice(i, 1)
                 i--
@@ -118,16 +169,162 @@ function parseArgs(argStr, ignoreNamed=true) {
     return args
 }
 
+function getArgs(funcInfo, args, standardVals) {
+    let ignoreNamed = standardVals === false
+    let parsedArgs = parseArgs(funcInfo.rawArgs, !ignoreNamed)
+    let namedArgs = extractNamedArgs(funcInfo.rawArgs)
+    let outputArgs = {}
+    let parsedExpected = []
+    let parsedExpectedOptions = []
+    let argCount = 0
+    standardVals = standardVals || {}
+    for (let i = 0; i < args.length; i++) {
+        let expectedArg = args[i]
+        let expectedArgOptions = {
+            numeric: false,
+            expanding: false,
+            optional: false,
+            min: null,
+            max: null,
+        }
+        if (expectedArg.startsWith("?")) {
+            expectedArgOptions.optional = true
+            expectedArg = expectedArg.slice(1)
+        } else if (expectedArg.startsWith("*")) {
+            expectedArgOptions.expanding = true
+            expectedArg = expectedArg.slice(1)
+        }
+        let subArgs = expectedArg.split(":").slice(1)
+        if (subArgs.includes("n")) {
+            expectedArgOptions.numeric = true
+            let nextArg = subArgs[subArgs.indexOf("n") + 1]
+            if (nextArg && /^\-?[0-9]+\~\-?[0-9]+$/.test(nextArg)) {
+                let [min, max] = nextArg.split("~").map(a => parseInt(a))
+                expectedArgOptions.min = min
+                expectedArgOptions.max = max
+            }
+        }
+        expectedArg = expectedArg.split(":", 1)[0]
+        parsedExpected.push(expectedArg)
+        parsedExpectedOptions.push(expectedArgOptions)
+        if (!expectedArgOptions.optional) {
+            argCount++
+        }
+    }
+
+    function error() {
+        terminal.printf`${{[Color.COLOR_2]: "$"}} `
+        terminal.print(funcInfo.funcName + " ")
+        for (let i = 0; i < parsedExpected.length; i++) {
+            if (!parsedExpectedOptions[i].optional) {
+                var str = `<${parsedExpected[i]}>`
+            } else {
+                var str = `<?${parsedExpected[i]}>`
+            }
+            terminal.printf`${{[Color.COLOR_1]: str}} `
+        }
+        terminal.printLine()
+        throw new IntendedError()
+    }
+
+    function numError(argName, argOpts) {
+        try {
+            error()
+        } catch {}
+        terminal.print(argName + " ", Color.COLOR_1)
+        terminal.print("must be a number")
+        if (argOpts.min != null) {
+            terminal.print(` between ${argOpts.min} and ${argOpts.max}`)
+        }
+        terminal.printLine()
+        throw new IntendedError()
+    }
+
+    if (parsedArgs.length > parsedExpected.length && !parsedExpectedOptions[parsedExpectedOptions.length - 1].expanding)
+        error()
+
+    for (let i = 0; i < parsedExpected.length; i++) {
+        let given = parsedArgs[i]
+        let excpected = parsedExpected[i]
+        let argOpts = parsedExpectedOptions[i]
+        if (given == undefined && !argOpts.optional) {
+            error()
+        } else if (given == undefined) {
+            outputArgs[excpected] = undefined
+        } else if (argOpts.numeric) {
+            if (/^\-?[0-9]+(?:\.[0-9]*)?$/.test(given)) {
+                let value = parseFloat(given)
+                if (argOpts.min != null) {
+                    if (value < argOpts.min || value > argOpts.max) {
+                        numError(excpected, argOpts)
+                    }
+                }
+                outputArgs[excpected] = value
+            } else {
+                numError(excpected, argOpts)
+            }
+        } else {
+            if (outputArgs[excpected] == undefined) {
+                outputArgs[excpected] = given
+            } else {
+                outputArgs[excpected] += " " + given
+            }
+        }
+        if (parsedArgs[i + 1] != undefined && parsedExpectedOptions[i].expanding) {
+            parsedArgs.shift()
+            i--
+        }
+    }
+    if (!ignoreNamed)
+    for (let [key, val] of Object.entries(namedArgs)) {
+        if (key in outputArgs) {
+            let argOpts = parsedExpectedOptions[parsedExpected.indexOf(key)]
+            if (argOpts.numeric) {
+                if (/^\-?[0-9]+(?:\.[0-9]*)?$/.test(val)) {
+                    let value = parseFloat(val)
+                    if (argOpts.min != null) {
+                        if (value < argOpts.min || value > argOpts.max) {
+                            numError(key, argOpts)
+                        }
+                    }
+                    outputArgs[key] = value
+                } else {
+                    numError(key, argOpts)
+                }
+            } else {
+                outputArgs[key] = val
+            }
+        } else {
+            throw new Error(`"${key}" is not a valid argument`)
+        }
+    }
+    for (let i = 0; i < parsedExpected.length; i++) {
+        if (parsedExpectedOptions[i].optional) {
+            let key = parsedExpected[i]
+            let val = outputArgs[key]
+            if ([true, undefined].includes(val)) {
+                if (key in standardVals) {
+                    outputArgs[key] = standardVals[key]
+                }
+            }
+        }
+    }
+    return outputArgs
+}
+
+const namedArgRegex = /^(?:\-{2}[a-zA-Z][a-zA-Z0-9\-\_]*)|(?:\-{1}[a-zA-Z])$/
+
 function extractNamedArgs(argStr) {
     let parsedArgs = parseArgs(argStr, false)
     let namedArgs = Object()
     for (let arg of parsedArgs) {
-        if (String(arg).startsWith("-")) {
+        if (namedArgRegex.test(arg)) {
             let argName = String(arg)
                 .split("").reverse().join("").split("-")[0]
                 .split("").reverse().join("")
             let argValue = parsedArgs[parsedArgs.indexOf(arg) + 1]
             if (!argValue) argValue = true
+            if (namedArgRegex.test(argValue)) argValue = true
             namedArgs[argName] = argValue
         }
     }
@@ -148,7 +345,7 @@ function terminalAbort() {
 }
 
 async function sleep(ms) {
-    return new Promise(async resolve => {
+    return new Promise(async (resolve, reject) => {
         TERMINAL_SLEEPING = true
         let HANDLED_STRG_C = false
         let intervalFunc = setInterval(function() {
@@ -157,6 +354,8 @@ async function sleep(ms) {
                 terminalAbort()
                 terminal.finishFunction()
                 STRG_C_PRESSED = false
+                TERMINAL_SLEEPING = false
+                clearInterval(intervalFunc)
             }
         }, 50)
         setTimeout(function() {
@@ -173,6 +372,29 @@ async function sleep(ms) {
             }
         }, ms)
     })
+}
+
+function levenshteinDistance(s1, s2) {
+    const [l1, l2] = [s1, s2].map(s => s.length + 1)
+    let matrix = Array.from(Array(l1))
+        .map((_, i) => Array.from(Array(l2))
+        .map((_, j) => (i == 0) ? j : ((j == 0) ? i : 0)))
+    for (let i = 1; i < l1; i++) {
+        for (let j = 1; j < l2; j++) {
+            let a, b, c
+            if (s1[i - 1] == s2[j - 1]) {
+                a = matrix[i - 1][j - 1]
+                b = matrix[i - 1][j    ] + 1
+                c = matrix[i    ][j - 1] + 1
+            } else {
+                a = matrix[i - 1][    j] + 1
+                b = matrix[i - 1][j - 1] + 1
+                c = matrix[i    ][j - 1] + 1
+            }
+            matrix[i][j] = Math.min(a, b, c)
+        }
+    }
+    return matrix[l1 - 1][l2 - 1] / (Math.max(l1, l2) - 1)
 }
 
 function getFolder(path) {
@@ -193,7 +415,8 @@ function strToPath(str) {
     let path = str.split("/")
     if (path.length == 1)
         path = str.split("\\")
-    return path.filter(p => p != "").map(p => String(p).trim())
+    path = path.map(p => String(p).trim()).filter(p => p != "")
+    return path
 }
 
 function strRepeat(str, num) {
@@ -228,13 +451,40 @@ class Terminal {
         document.documentElement.style.setProperty("--foreground", color)
     }
 
+    get accentColor1() {
+        return document.documentElement.style.getPropertyValue("--accent-color-1")
+    }
+
+    set accentColor1(color) {
+        document.documentElement.style.setProperty("--accent-color-1", color)
+    }
+    
+    get accentColor2() {
+        return document.documentElement.style.getPropertyValue("--accent-color-2")
+    }
+
+    set accentColor2(color) {
+        document.documentElement.style.setProperty("--accent-color-2", color)
+    }
+
+    get btnColor() {
+        return document.documentElement.style.getPropertyValue("--btn-color")
+    }
+
+    set btnColor(color) {
+        document.documentElement.style.setProperty("--btn-color", color)
+    }
+
     export() {
         return {
             currPath: this.currPath,
             prevCommands: this.prevCommands,
             files: FILE_SYSTEM.export(),
             background: this.background,
-            foreground: this.foreground
+            foreground: this.foreground,
+            accentColor1: this.accentColor1,
+            accentColor2: this.accentColor2,
+            btnColor: this.btnColor
         }
     }
 
@@ -252,6 +502,9 @@ class Terminal {
                 this.prevCommands = data.prevCommands
                 this.background = data.background
                 this.foreground = data.foreground
+                this.accentColor1 = data.accentColor1
+                this.accentColor2 = data.accentColor2
+                this.btnColor = data.btnColor
                 FILE_SYSTEM = FileElement.fromData(data.files)
                 console.log("Loaded Autosave")
             } catch {
@@ -267,6 +520,18 @@ class Terminal {
         })   
     }
 
+    makeInputFunc(input) {
+        return async function() {
+            if (COMMAND_RUNNING) return
+            if (this.currInput) {
+                this.currInput.remove()
+                this.currInput = null
+            }
+            await this.animatePrint(input)
+            await this.inputLine(input)
+        }.bind(this)
+    }
+
     constructor() {
         this.parentNode.addEventListener("click", function() {
             if (this.currInput != null) {
@@ -279,12 +544,12 @@ class Terminal {
         }.bind(this))
 
         this.addFunction("help", function() {
-            this.printf`${{[Color.YELLOW]: "Welcome to the Help Menu!"}}\n`
+            this.printf`${{[Color.COLOR_1]: "Welcome to the Help Menu!"}}\n`
             this.printLine("Here are some commands to try out:\n")
             let longestCommandLength = this.functions.filter(f => f.helpVisible)
                 .reduce((p, c) => Math.max(p, c.name.length), 0)
             for (let terminalFunc of this.functions.filter(f => f.helpVisible)) {
-                this.printf`  ${{[Color.PURPLE]: terminalFunc.name}}`
+                this.printCommand("  " + terminalFunc.name, terminalFunc.name, Color.PURPLE, false)
                 let spaces = strRepeat(" ", longestCommandLength - terminalFunc.name.length + 2)
                 this.printLine(`${spaces}${terminalFunc.description}`)
             }
@@ -292,18 +557,18 @@ class Terminal {
         }.bind(this), "show this help menu")
 
         this.load()
-
         this.updatePath()
+        this.updateFileSystem()
     }
 
     animatePrint(line) {
         return new Promise(async function(resolve) {
-            isWaiting = true
+            COMMAND_RUNNING = true
             for (let char of line) {
                 this.print(char)
                 await sleep(50)
             }
-            isWaiting = false
+            COMMAND_RUNNING = false
             this.addLineBreak()
             resolve()
         }.bind(this))
@@ -315,7 +580,7 @@ class Terminal {
             let button = document.createElement("button")
             button.textContent = buttonText
             button.onclick = async function() {
-                if (isWaiting) return
+                if (COMMAND_RUNNING) return
                 let commandArray = [command]
                 if (Array.isArray(command))
                     commandArray = command
@@ -325,7 +590,7 @@ class Terminal {
                         this.currInput = null
                     }
                     await this.animatePrint(subCommand)
-                    this.inputLine(subCommand)
+                    await this.inputLine(subCommand)
                 }
             }.bind(this)
             this.buttonsNode.appendChild(button)
@@ -373,9 +638,9 @@ class Terminal {
                 }
                 let num = parseFloat(inp)
                 if ("min" in options && options.min > num) {
-                    this.printf`${{[Color.RED]: "Error"}}: The number must be larger than ${{[Color.WHITE]: options.min}}\n`
+                    this.printf`${{[Color.RED]: "Error"}}: The number must be larger than ${{[Color.WHITE]: options.min - 1}}\n`
                 } else if ("max" in options && options.max < num) {
-                    this.printf`${{[Color.RED]: "Error"}}: The number must be smaller than ${{[Color.WHITE]: options.max}}\n`
+                    this.printf`${{[Color.RED]: "Error"}}: The number must be smaller than ${{[Color.WHITE]: options.max + 1}}\n`
                 } else {
                     resolve(num)
                     return
@@ -384,18 +649,49 @@ class Terminal {
         }.bind(this))
     }
 
+    async acceptPrompt(msg=null, standardYes=true) {
+        msg += standardYes ? " [Y/n] " : " [y/N] "
+        let input = await terminal.prompt(msg)
+        while (!["y", "n"].includes(input.toLowerCase()) && input != "") {
+            terminal.print("Invalid Input!\n", Color.RED)
+            input = await terminal.prompt(msg)
+        }
+        if (input == "") input = standardYes ? "y" : "n"
+        if (input == "n") throw new IntendedError()
+    }
+
+    
     getFunction(name) {
         return this.functions.find(f => f.name == name)
     }
-
+    
     addLineBreak(indentToggle=true) {
         let br = this.parentNode.appendChild(document.createElement("br"))
         if (indentToggle) this.print("  ")
         return br
     }
-
+    
     cleanMessage(msg) {
         return String(msg)
+    }
+
+    printCommand(commandText, command, color=Color.WHITE, endLine=true) {
+        let pre = this.print(commandText, color)
+        pre.classList.add("clickable")
+        pre.onclick = this.makeInputFunc(command)
+        if (endLine) this.addLineBreak()
+        return pre
+    }
+
+    printLink(msg, url, color=Color.WHITE, endLine=true) {
+        let anchorElement = document.createElement("a")
+        anchorElement.href = url
+        anchorElement.textContent = msg
+        if (color != Color.WHITE)
+            anchorElement.style.color = color
+        this.parentNode.appendChild(anchorElement)
+        if (endLine) this.addLineBreak()
+        return anchorElement
     }
 
     printf(strings, ...args) {
@@ -426,6 +722,42 @@ class Terminal {
                 this.addLineBreak()
         }
         return out
+    }
+
+    printError(msg) {
+        terminal.print("Error", Color.RED)
+        terminal.printLine(`: ${msg}`)
+    }
+
+    printTable(inRows, headerRow=null) {
+        let rows = inRows.map(r => r.map(c => (c == undefined) ? " " : c))
+        if (headerRow != null) rows.unshift(headerRow)
+        const column = i => rows.map(row => row[i])
+        const columnWidth = i => Math.max(...column(i)
+            .map(e => String((e == undefined) ? " " : e).length))
+        for (let rowIndex = 0; rowIndex <= rows.length; rowIndex++) {
+            if (rowIndex == 0
+                || (rowIndex == 1 && headerRow != null)
+                || (rowIndex == rows.length)) {
+                let line = ""
+                for (let columnIndex = 0; columnIndex < rows[0].length; columnIndex++) {
+                    let item = stringMul("-", columnWidth(columnIndex))
+                    line += `+-${item}-`
+                }
+                line += "+"
+                terminal.printLine(line)
+            }
+            if (rowIndex == rows.length) break
+            let line = ""
+            for (let columnIndex = 0; columnIndex < rows[0].length; columnIndex++) {
+                let itemVal = rows[rowIndex][columnIndex]
+                if (itemVal == undefined) itemVal = " "
+                let item = stringPad(itemVal, columnWidth(columnIndex))
+                line += `| ${item} `
+            }
+            line += "|  "
+            terminal.printLine(line)
+        }
     }
 
     setTextDiv(newTextDiv) {
@@ -460,10 +792,12 @@ class Terminal {
     finishFunction(lineBreak=true) {
         if (lineBreak) this.addLineBreak(false)
         this.print(`home/${this.currPath.join("/")} `)
-        this.printf`${{[Color.SWAMP_GREEN]: "$"}} `
+        this.printf`${{[Color.COLOR_2]: "$"}} `
         if (!isMobile) {
             this.awaitInput()
         }
+        COMMAND_RUNNING = false
+        terminal.updateFileSystem()
         terminal.save()
     }
 
@@ -585,7 +919,8 @@ class Terminal {
 
         if (foundFunction) {
             await foundFunction.run(argString, {
-                funcName: functionText
+                funcName: functionText,
+                rawArgs: argString
             })
             return
         } else if (!inputStr) {
@@ -603,6 +938,73 @@ class Terminal {
         return currFolder
     }
 
+    get rootFolder() {
+        return FILE_SYSTEM
+    }
+
+    updateFileSystem() {
+        this.rootFolder.updatePaths()
+    }
+
+    getFile(path, fileType=null, printError=true) {
+        function notFoundError() {
+            if (printError) {
+                terminal.printError(`File not found "${path}"`)
+    
+                while (path.startsWith("/") || path.endsWith("\\"))
+                    path = path.slice(1)
+                while (path.endsWith("/") || path.endsWith("\\"))
+                    path = path.slice(0, -1)
+    
+                let closestMatch = null
+                let smallestDistance = Infinity
+                const allRelativeFiles = getAllFiles("path", terminal.currFolder)
+                    .map(p => p.slice(terminal.currFolder.path.length + 1))
+                for (let name of allRelativeFiles) {
+                    let fileName = removeFileExtension(name)
+                    let filePath = removeFileExtension(path)
+                    let distance = levenshteinDistance(filePath, fileName)
+                    if (distance < smallestDistance) {
+                        smallestDistance = distance
+                        closestMatch = name
+                    }
+                }
+    
+                if (smallestDistance < 0.4) {
+                    terminal.print("Did you mean ")
+                    terminal.print(closestMatch, Color.YELLOW)
+                    terminal.printLine("?")
+                }
+            }
+
+            throw new IntendedError()
+        }
+        let currFile = this.currFolder
+        for (let item of strToPath(path)) {
+            if (currFile.type == FileType.FOLDER) {
+                if (item in currFile.content) {
+                    currFile = currFile.content[item]
+                } else {
+                    notFoundError()
+                }
+            } else {
+                notFoundError()
+            }
+        }
+        if (fileType != null && fileType != currFile.type)
+            throw new Error(`File is not of type ${fileType}`)
+        return currFile
+    }
+
+    fileExists(path) {
+        try {
+            this.getFile(path, null, false)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     addToPath(folderName) {
         this.currPath.push(folderName)
     }
@@ -611,12 +1013,17 @@ class Terminal {
         this.parentNode.style.setProperty("--font-size", `${value}em`)
     }
 
-    get pathAsStr() {
+    pathToStr(path) {
         let pathStr = "home/"
-        for (let pathItem of this.currPath) {
-            pathStr += `${pathItem}/`
+        for (let pathItem of path) {
+            if (pathItem.length > 0)
+                pathStr += `${pathItem}/`
         }
         return pathStr
+    }
+
+    get pathAsStr() {
+        return this.pathToStr(this.currPath)
     }
 
     updatePath() {
