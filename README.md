@@ -48,6 +48,10 @@ The page is build to work like a Unix-Terminal, including:
   3. download it using `download <filename>.<new_ending>`
 * misspell `ls` as `sl`
 * calculate the derivative of `sin(x)` using `derivative sin(x)`
+* play some games against an artificial opponent player
+  * play `chess`
+  * play `4inarow` (connect 4)
+  * play `tictactoe`
 
 ## Commands
 
