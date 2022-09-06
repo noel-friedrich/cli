@@ -1,17 +1,28 @@
 terminal.addFunction("ls", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["?folder"], {folder: ""})
+    let args = getArgs(funcInfo, ["?folder", "?r"], {folder: ""})
     let targetFolder = terminal.getFile(!!args.folder ? args.folder : "", FileType.FOLDER)
 
-    let i = 0
-    for (let [fileName, file] of Object.entries(targetFolder.content)) {
-        i++
-        terminal.print(i + " ", Color.COLOR_1)
-        if (file.type == FileType.FOLDER) {
-            terminal.printCommand(`${fileName}/`, `cd ${fileName}/`)
-        } else {
-            terminal.printLine(fileName)
+    let recursive = args.r
+
+    function listFolder(folder, indentation=0) {
+        let i = 0
+        for (let [fileName, file] of Object.entries(folder.content)) {
+            i++
+            if (indentation > 0)
+                terminal.print(" ".repeat(indentation))
+            terminal.print(i + " ", Color.COLOR_1)
+            if (file.type == FileType.FOLDER) {
+                terminal.printCommand(`${fileName}/`, `cd ${fileName}/`)
+                if (recursive) {
+                    listFolder(file, indentation + 4)
+                }
+            } else {
+                terminal.printLine(fileName)
+            }
         }
     }
+
+    listFolder(targetFolder)
 
     if (Object.entries(targetFolder.content).length == 0) {
         terminal.printLine(`this directory is empty`)
@@ -2801,3 +2812,86 @@ terminal.addFunction("donut", async function() {
               await sleep(30);}
 
 }, "do the spinny donut.c")
+
+terminal.addCommand("grep", async function(args) {
+    let recursive = args.r ?? false
+    let ignorecase = args.i ?? false
+    let invert = args.v ?? false
+    let linematch = args.x ?? false
+
+    if (ignorecase)
+        args.pattern = args.pattern.toLowerCase()
+
+    let matches = []
+
+    function processFile(file, filename, allowRecursionOnce=false) {
+        if (file.type == FileType.FOLDER) {
+            if (recursive || allowRecursionOnce) {
+                for (let [newName, newFile] of Object.entries(file.content)) {
+                    if (!recursive && newFile.type == FileType.FOLDER) continue
+                    processFile(newFile, newName)
+                }
+            } else {
+                throw new Error(`File ${filename} is a directory!`)
+            }
+        } else {
+            for (let line of file.content.split("\n")) {
+                if (linematch) {
+                    let tempLine = line
+                    if (ignorecase)
+                        tempLine = line.toLowerCase()
+                    var matching = tempLine === args.pattern
+                } else if (ignorecase) {
+                    var matching = line.toLowerCase().includes(args.pattern)
+                } else {
+                    var matching = line.includes(args.pattern)
+                }
+                if (matching ^ invert) {
+                    if (ignorecase) {
+                        var offset = line.toLowerCase().indexOf(args.pattern)
+                    } else {
+                        var offset = line.indexOf(args.pattern)
+                    }
+                    matches.push({
+                        filename: filename,
+                        line: line,
+                        offset: offset
+                    })
+                }
+            }
+        }
+    }
+
+    if (args.file == "*") {
+        processFile(terminal.currFolder, ".", true)
+    } else {
+        for (let filename of args.file.split(" ")) {
+            let file = terminal.getFile(filename)
+            processFile(file, filename)
+        }
+    }
+
+    for (let match of matches) {
+        terminal.print(match.filename, Color.COLOR_1)
+        terminal.print(" : ")
+        if (match.offset == -1) {
+            terminal.print(match.line)
+        } else {
+            let prevLine = match.line.substring(0, match.offset)
+            let matchLine = match.line.substring(match.offset, match.offset + args.pattern.length)
+            let nextLine = match.line.substring(match.offset + args.pattern.length)
+            terminal.print(prevLine)
+            terminal.print(matchLine, Color.COLOR_2)
+            terminal.print(nextLine)
+        }
+        terminal.addLineBreak()
+    }
+
+    if (matches.length == 0) {
+        terminal.printLine("no matches")
+    }
+
+}, {
+    description: "search for a pattern in a file",
+    args: ["pattern", "*file", "?r", "?i", "?v", "?x"],
+})
