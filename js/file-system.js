@@ -6,11 +6,15 @@ if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine
 }
 
 class FileType {
-    static FOLDER = "folder"
-    static READABLE = "readable"
-    static PROGRAM = "program"
-    static MELODY = "melody"
+    static FOLDER = "FOLDER"
+    static READABLE = "READABLE"
+    static PROGRAM = "PROGRAM"
+    static MELODY = "MELODY"
+    static DATA_URL = "DATA_URL"
+    static TEMP = "TEMP"
 }
+
+const MAX_FILE_SIZE = 10 ** 5 // bytes
 
 class FileElement {
 
@@ -18,6 +22,31 @@ class FileElement {
         this.type = type
         this.content = content
         this.buttonsData = buttonsData || {}
+        this.path = undefined
+    }
+
+    get name() {
+        // grabs last item of path seperated by "/"
+        return this.path.split("").reverse().join("")
+            .split("/", 1)[0].split("").reverse().join("")
+    }
+
+    get parent() {
+        let path = this.path.split("/").filter(p => p.length > 0)
+        path.splice(0, 1)
+        path.pop()
+        let [parent, error] = getFolder(path)
+        if (error) throw new Error(error)
+        return parent
+    }
+
+    updatePaths(path="home") {
+        this.path = path
+        if (this.type == FileType.FOLDER) {
+            for (let [fileName, file] of Object.entries(this.content)) {
+                file.updatePaths(`${path}/${fileName}`)
+            }
+        }
     }
 
     contains(searchFileName, ignoreCase=true) {
@@ -44,12 +73,24 @@ class FileElement {
         return false
     }
 
+    copy() {
+        let exported = JSON.stringify(this.export())
+        return FileElement.fromData(JSON.parse(exported))
+    }
+
+    get size() {
+        return JSON.stringify(this.export()).length
+    }
+
     export() {
         let content = this.content
         if (this.type == FileType.FOLDER) {
             content = Object()
             for (let [key, val] of Object.entries(this.content)) {
-                content[key] = val.export()
+                let data = val.export()
+                if (JSON.stringify(data).length <= MAX_FILE_SIZE) {
+                    content[key] = data
+                }
             }
         }
         return {
@@ -80,7 +121,7 @@ const welcome_txt_content = `Hello World!
 | | | | (_) |  __/ |_| | | |  | |  __/ (_| | |  | | (__| | | |
 |_| |_|\\___/ \\___|_(_)_| |_|  |_|\\___|\\__,_|_|  |_|\\___|_| |_|
 
-I'm a hobbiest programmer and like to play around with stuff.
+I'm a hobbyist programmer and like to play around with stuff.
 
 This site is built to work like a terminal:
 - use 'help' to see a list of available commands
@@ -243,4 +284,25 @@ let FILE_SYSTEM = new FileElement(FileType.FOLDER, {
     }, {"<": "cd ..", "secret": "cd secret/", "contact": "cat contact.txt", "melodies": ["cd melodies/", "cat README.txt"]}),
     "extras.txt": new FileElement(FileType.READABLE, extras_txt),
     "github.exe": new FileElement(FileType.PROGRAM, "https://github.com/noel-friedrich/cli"),
-}, {"projects": ["cd projects/", "cat README.txt"], "about me": "cat about.txt", "help": "help"})
+    "blog.exe": new FileElement(FileType.PROGRAM, "https://noel-friedrich.de/blobber")
+}, {"projects": ["cd projects/", "cat README.txt"], "about me": "cat about.txt", "help": "help", "my blog": "run blog.exe"})
+
+function getAllFiles(attr="name", rootFolder=null) {
+    let allFiles = []
+    function addFolderFiles(folder) {
+        for (let [_, file] of Object.entries(folder.content)) {
+            allFiles.push(file[attr])
+            if (file.type == FileType.FOLDER) {
+                addFolderFiles(file)
+            }
+        }
+    }
+    addFolderFiles(rootFolder || terminal.rootFolder)
+    return allFiles
+}
+
+function removeFileExtension(s) {
+    let match = s.match(/(^.+)\..+$/)
+    if (!match) return s
+    return match[1]
+}
