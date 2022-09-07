@@ -183,6 +183,7 @@ The following list can also be viewed using the `whatis *` command
 | `todo`           | manage todo lists                                  |
 | `top`            | display the top processes                          |
 | `touch`          | create a file in the current directory             |
+| `tree`           | alias for 'ls -r'                                  |
 | `turtlo`         | spawn turtlo                                       |
 | `uname`          | display the name of the operating system           |
 | `unhidebtns`     | unhide the terminal buttons                        |
