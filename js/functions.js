@@ -4,17 +4,36 @@ terminal.addFunction("ls", function(_, funcInfo) {
 
     let recursive = args.r
 
-    function listFolder(folder, indentation=0) {
+    const CHARS = {
+        LINE: "│",
+        T: "├",
+        L: "└",
+        DASH: "─",
+    }
+
+    function listFolder(folder, indentation="") {
         let i = 0
+        let printedL = false
         for (let [fileName, file] of Object.entries(folder.content)) {
             i++
-            if (indentation > 0)
-                terminal.print(" ".repeat(indentation))
-            terminal.print(i + " ", Color.COLOR_1)
+            if (indentation.length > 0) {
+                terminal.print(indentation)
+            }
+            if (i == Object.keys(folder.content).length) {
+                terminal.print(CHARS.L)
+                printedL = true
+            } else {
+                terminal.print(CHARS.T)
+            }
+            terminal.print(CHARS.DASH.repeat(2) + " ")
             if (file.type == FileType.FOLDER) {
                 terminal.printCommand(`${fileName}/`, `cd ${fileName}/`)
                 if (recursive) {
-                    listFolder(file, indentation + 4)
+                    let indentAddition = `${CHARS.LINE}   `
+                    if (printedL) {
+                        indentAddition = "    "
+                    }
+                    listFolder(file, indentation + indentAddition)
                 }
             } else {
                 terminal.printLine(fileName)
@@ -467,6 +486,14 @@ terminal.addFunction("color-test", async function() {
     }
 }, "test the color functionality")
 
+function addAlias(alias, command) {
+    terminal.addFunction(alias, function() {
+        terminal.inputLine(command, false)
+    }, `alias for '${command}'`)
+}
+
+addAlias("tree", "ls -r")
+
 terminal.addFunction("style", async function(_, funcInfo) {
     class Preset {
 
@@ -797,15 +824,10 @@ function brainfuckFunc(rawArgs) {
 terminal.addFunction("brainfuck", brainfuckFunc, "parse given brainfuck code")
 terminal.addFunction("bf", brainfuckFunc, "parse given brainfuck code")
 
-terminal.addFunction("alias", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 2) {
-        terminal.printLine(`You must supply exactly two parameters:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} alias ${{[Color.COLOR_1]: "<alias> <command>"}}'\n`
-        return
-    }
+terminal.addFunction("alias", function(rawArgs, funcInfo) {
+    let args = getArgs(funcInfo, ["alias", "command"])
+    let alias = args.alias, command = args.command
 
-    let [alias, command] = parsedArgs
     if (terminal.functions.map(f => f.name.toLowerCase()).includes(alias.toLowerCase())) {
         terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.COLOR_1]: alias}} already exists!\n`
         return
@@ -818,9 +840,7 @@ terminal.addFunction("alias", function(rawArgs) {
         terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.COLOR_1]: command}} not found!\n`
         return
     }
-    terminal.addFunction(alias, function(rawArgs) {
-        terminal.functions.find(f => f.name == command).run(rawArgs, false)
-    }, `alias for '${command}'`)
+    addAlias(alias, command)
 }, "create a new alias for a given function")
 
 terminal.addFunction("lscmds", async function(rawArgs) {
