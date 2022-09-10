@@ -1,5 +1,4 @@
-terminal.addFunction("ls", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["?folder", "?r"], {folder: ""})
+terminal.addCommand("ls", function(args) {
     let targetFolder = terminal.getFile(!!args.folder ? args.folder : "", FileType.FOLDER)
 
     let recursive = args.r
@@ -27,7 +26,7 @@ terminal.addFunction("ls", function(_, funcInfo) {
             }
             terminal.print(CHARS.DASH.repeat(2) + " ")
             if (file.type == FileType.FOLDER) {
-                terminal.printCommand(`${fileName}/`, `cd ${fileName}/`)
+                terminal.printCommand(`${fileName}/`, `cd ${file.path}/`)
                 if (recursive) {
                     let indentAddition = `${CHARS.LINE}   `
                     if (printedL) {
@@ -43,24 +42,17 @@ terminal.addFunction("ls", function(_, funcInfo) {
 
     listFolder(targetFolder)
 
-    if (Object.entries(targetFolder.content).length == 0) {
+    if (Object.entries(targetFolder.content).length == 0)
         terminal.printLine(`this directory is empty`)
-    }
-}, "list all files of current directory", true)
 
-function getSingleArg(rawArgs, cmdname, argname) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} ${{[Color.WHITE]: cmdname}} ${{[Color.COLOR_1]: "<" + argname + ">"}}'\n`
-        throw new IntendedError()
-    }
-    return parsedArgs[0]
-}
+}, {
+    helpVisible: true,
+    description: "list all files of current directory",
+    args: ["?folder", "?r"],
+    standardVals: {folder: ""}
+})
 
-terminal.addFunction("cd", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["directory"])
-    
+terminal.addCommand("cd", function(args) {
     if (["-", ".."].includes(args.directory)) {
         if (terminal.currPath.length > 0) {
             terminal.currPath.pop()
@@ -78,33 +70,14 @@ terminal.addFunction("cd", function(_, funcInfo) {
             throw new Error("You are already at ground level")
         }
     }
-    
-    let path = args.directory.split("/")
-    if (args.directory.length == 1)
-        path = args.directory.split("\\")
 
-    path = path.map(p => p.trim()).filter(p => p.length > 0)
-
-    let i = 0
-    for (var folderName of path) {
-        i++
-        if (i == path.length && folderName == "") return
-        if (folderName == "") continue
-        for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-            if (fileName == folderName && file.type != FileType.FOLDER) {
-                terminal.printf`${{[Color.RED]: "Error"}}: File is not of Type DIRECTORY\n`
-                return
-            } else if (fileName == folderName && file.type == FileType.FOLDER) {
-                terminal.addToPath(fileName)
-                terminal.updatePath()
-                if (i == path.length)
-                    return
-            }
-        }
-    }
-    terminal.printLine(`${folderName}: directory not found`)
-    terminal.printf`Use ${{[Color.COLOR_1]: "ls"}} to view available files\n`
-}, "change current directory", true)
+    let targetFolder = terminal.getFile(args.directory, FileType.FOLDER)
+    terminal.currPath = targetFolder.pathArray
+}, {
+    helpVisible: true,
+    args: ["directory"],
+    description: "change current directory",
+})
 
 {
     function makeCatFunc(readFunc) {
@@ -119,6 +92,12 @@ terminal.addFunction("cd", function(_, funcInfo) {
             }
             if (!file.content)
                 throw new Error("File is empty")
+            if (file.type == FileType.DATA_URL) {
+                terminal.printLine()
+                terminal.printImg(file.content)
+                terminal.printLine()
+                return
+            }
             if (readFunc.constructor.name == "AsyncFunction")
                 await readFunc(file.content, args.file, file)
             else 
@@ -175,8 +154,7 @@ terminal.addFunction("cd", function(_, funcInfo) {
 
 }
 
-terminal.addFunction("wc", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["file"])
+terminal.addCommand("wc", function(args) {
     let file = terminal.getFile(args.file)
     if (file.type == FileType.FOLDER) {
         throw new Error("Cannot read file of type FOLDER")
@@ -190,7 +168,10 @@ terminal.addFunction("wc", function(_, funcInfo) {
         terminal.print(infoContent + " ", Color.COLOR_1)
         terminal.printLine(infoName)
     }
-}, "display word and line count of file")
+}, {
+    description: "display word and line count of file",
+    args: ["file"]
+})
 
 terminal.addFunction("whoami", function() {
     function startsWithVowel(word) {
@@ -254,8 +235,7 @@ function missingPermissions() {
     terminal.printf`${{[Color.RED]: "Error"}}: You do not have permission to use this command!\n`
 }
 
-terminal.addFunction("mkdir", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["directory_name"])
+terminal.addCommand("mkdir", function(args) {
     if (args.directory_name.match(/[\\\/\.\s]/))
         throw new Error("File may not contain '/' or '\\'")
     if (terminal.fileExists(args.directory_name))
@@ -263,20 +243,10 @@ terminal.addFunction("mkdir", function(_, funcInfo) {
     let newFolder = new FileElement(FileType.FOLDER, {})
     terminal.currFolder.content[args.directory_name] = newFolder
     terminal.printLine(`Created ${terminal.pathAsStr + args.directory_name}/`)
-}, "create a new directory")
-
-async function animatedDo(action) {
-    return new Promise(async resolve => {
-        terminal.print(action)
-        for (let i = 0; i < 6; i++) {
-            await sleep(200)
-            terminal.print(".")
-        }
-        await sleep(500)
-        terminal.printf`${{[Color.COLOR_1]: "done"}}\n`
-        resolve()
-    })
-}
+}, {
+    description: "create a new directory",
+    args: ["directory_name"]
+})
 
 terminal.addFunction("cp", async function(_, funcInfo) {
     let args = getArgs(funcInfo, ["file", "directory"])
@@ -448,15 +418,17 @@ terminal.addFunction("edit", async function(rawArgs) {
     })
 }, "edit a file of the current directory")
 
-terminal.addFunction("touch", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["filename"])
+terminal.addCommand("touch", function(args) {
     if (!/^[a-zA-Z0-9\-\_]{1,20}(\.[a-zA-Z0-9]{1,10})*$/.test(args.filename))
         throw new Error("Invalid filename")
     if (terminal.fileExists(args.filename))
         throw new Error("File already exists")
     let newFile = new FileElement(FileType.READABLE, "")
     terminal.currFolder.content[args.filename] = newFile
-}, "create a file in the current directory")
+}, {
+    description: "create a file in the current directory",
+    args: ["filename"]
+})
 
 terminal.addFunction("lsusb", function() {
     terminal.printLine(`i'm a website. Where are the sub ports supposed to be?`)
@@ -908,6 +880,18 @@ terminal.addFunction("shutdown", shutDownFunc, "shutdown the website... or not?"
 terminal.addFunction("reboot", () => window.location.reload(), "reboot the website")
 
 terminal.addFunction("reset", async function() {
+    async function animatedDo(action) {
+        return new Promise(async resolve => {
+            terminal.print(action)
+            for (let i = 0; i < 6; i++) {
+                await sleep(200)
+                terminal.print(".")
+            }
+            await sleep(500)
+            terminal.printf`${{[Color.COLOR_1]: "done"}}\n`
+            resolve()
+        })
+    }
     return new Promise(async resolve => {
         await animatedDo("resetting")
         localStorage.removeItem("terminal-autosave")
@@ -1179,16 +1163,8 @@ function newMathEnv() {
 const sin = Math.sin, cos = Math.cos, tan = Math.tan, sqrt = Math.sqrt, 
       e = Math.E, pi = Math.PI, exp = Math.exp, abs = Math.abs
 
-terminal.addFunction("solve", async function(argString) {
-    let parsedArgs = parseArgs(argString, false)
-    if (parsedArgs.length < 1) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} solve ${{[Color.COLOR_1]: "<equation>"}}'\n`
-        terminal.printf`An example equation could be: ${{[Color.COLOR_1]: "2 * x + 4 = 5"}}\n`
-        return
-    }
-    let namedArgs = extractNamedArgs(argString)
-    let equation = parsedArgs[0]
+terminal.addCommand("solve", async function(args) {
+    let equation = args.equation
     if (!/^[0-9x\s\\\*\.a-z+-\^\(\)]+=[0-9x\s\\\*\.a-z+-\^\(\)]+$/.test(equation)) {
         terminal.printf`${{[Color.RED]: "Error"}}: Invalid equation!\n`
         terminal.printf`An valid equation could be: ${{[Color.COLOR_1]: "2x+4=5"}}\n`
@@ -1197,40 +1173,11 @@ terminal.addFunction("solve", async function(argString) {
     while (/[0-9]x/g.test(equation)) equation = equation.replace(/([0-9])x/g, "$1*x")
     while (/[0-9a-z]\s*\^\s*[0-9a-z]/g.test(equation)) equation = equation.replace(/([0-9a-z])\s*\^\s*([0-9a-z])/g, "$1**$2")
     let [left, right] = equation.split("=")
-    let jsEnv = newMathEnv()
-    let iterations = 4
-    if (namedArgs.hasOwnProperty("i")) {
-        iterations = parseInt(namedArgs.i)
-        if (isNaN(iterations) || iterations < 1 || iterations > 5) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid iterations!\n`
-            return
-        }
-    }
+    let iterations = args.i
     let iterationCount = 0
-    let maxIterations = 100000
-    if (namedArgs.hasOwnProperty("m")) {
-        maxIterations = parseInt(namedArgs.m)
-        if (isNaN(maxIterations) || maxIterations < 1 || maxIterations > 5) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid maxIterations!\n`
-            return
-        }
-    }
-    let lowerBound = -100
-    if (namedArgs.hasOwnProperty("l")) {
-        lowerBound = parseInt(namedArgs.l)
-        if (isNaN(lowerBound)) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid lowerBound!\n`
-            return
-        }
-    }
-    let upperBound = 100
-    if (namedArgs.hasOwnProperty("u")) {
-        upperBound = parseInt(namedArgs.u)
-        if (isNaN(upperBound) || lowerBound >= upperBound) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid upperBound!\n`
-            return
-        }
-    }
+    let maxIterations = args.m
+    let lowerBound = args.l
+    let upperBound = args.u
     try {
         var [LHS, RHS] = [Function("x", `return ${left}`), Function("x", `return ${right}`)]
     } catch {
@@ -1282,24 +1229,18 @@ terminal.addFunction("solve", async function(argString) {
     if (iterationCount >= maxIterations) {
         terminal.printf`${{[Color.RED]: "Error"}}: Too many Iterations!\n`
     }
-}, "solve a mathematical equation for x")
-
-terminal.addFunction("plot", async function(_, funcInfo) {
-    try {   
-        var args = getArgs(funcInfo, [
-            "equation",
-            "?xmin:n:-1000~1000", "?xmax:n:-1000~1000",
-            "?ymin:n:-1000~1000", "?ymax:n:-1000~1000",
-            "?playtime:n:0~10000"
-        ], {
-            xmin: -Math.PI, xmax: Math.PI,
-            ymin: -Math.PI, ymax: Math.PI,
-            playtime: 2500
-        })
-    } catch {
-        terminal.printf`An example equation could be: ${{[Color.COLOR_1]: "x^2"}}\n`
-        throw new IntendedError()
+}, {
+    description: "solve a mathematical equation for x",
+    args: ["*equation", "?i:n:1~5", "?m:n:1~100000", "?l:n", "?u:n"],
+    standardVals: {
+        i: 4,
+        m: 100000,
+        l: -100,
+        u: 100
     }
+})
+
+terminal.addCommand("plot", async function(args) {
     let equation = args.equation
     if (!/^[0-9x\s\\\*\.a-z+-\^\(\)]+$/.test(equation)) {
         terminal.printf`${{[Color.RED]: "Error"}}: Invalid equation!\n`
@@ -1436,31 +1377,49 @@ terminal.addFunction("plot", async function(_, funcInfo) {
         playFrequency(note, noteTime)
         await sleep(noteTime * 0.5)
     }
-}, "plot a mathematical function within bounds")
+}, {
+    description: "plot a mathematical function within bounds",
+    args: [
+        "equation",
+        "?xmin:n:-1000~1000", "?xmax:n:-1000~1000",
+        "?ymin:n:-1000~1000", "?ymax:n:-1000~1000",
+        "?playtime:n:0~10000"
+    ],
+    standardVals: {
+        xmin: -Math.PI, xmax: Math.PI,
+        ymin: -Math.PI, ymax: Math.PI,
+        playtime: 2500
+    }
+})
 
 const OG_BACKGROUND_COLOR = "rgb(3, 3, 6)"
-terminal.addFunction("background", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["color"])
+terminal.addCommand("background", function(args) {
     if (args.color.toLowerCase() == "reset") {
         terminal.background = OG_BACKGROUND_COLOR
         return
     }
     terminal.background = args.color
-}, "change the background color of the terminal")
+}, {
+    description: "change the background color of the terminal",
+    args: ["color"]
+})
 
 const OG_FOREGROUND_COLOR = "rgb(255, 255, 255)"
-terminal.addFunction("foreground", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["color"])
+terminal.addCommand("foreground", function(args) {
     if (args.color.toLowerCase() == "reset") {
         terminal.foreground = OG_FOREGROUND_COLOR
         return
     }
     terminal.foreground = args.color
-}, "change the foreground color of the terminal")
+}, {
+    description: "change the foreground color of the terminal",
+    args: ["color"]
+})
 
 terminal.addFunction("hi", async () => await funnyPrint("hello there!"), "say hello to the terminal")
 
-terminal.addFunction("whatday", function(rawArgs, funcInfo) {
+terminal.addCommand("whatday", function(args) {
+
     function dayToStr(n) {
         return [
             "first", "second", "third", "fourth",
@@ -1531,7 +1490,8 @@ terminal.addFunction("whatday", function(rawArgs, funcInfo) {
         "June", "July", "August", "September",
         "October", "November", "December"
     ]
-    let dateStr = getSingleArg(rawArgs, funcInfo.funcName, "DD:MM:YYYY")
+
+    let dateStr = args["DD.MM.YYYY"]
 
     function dateEq(d1, d2) {
         return (d1.getFullYear() == d2.getFullYear()
@@ -1571,7 +1531,10 @@ terminal.addFunction("whatday", function(rawArgs, funcInfo) {
         throw new Error(`Invalid date: ${dateStr}`)
     }
     
-}, "get the weekday of a given date")
+}, {
+    description: "get the weekday of a date",
+    args: ["DD.MM.YYYY"]
+})
 
 terminal.addFunction("cal", async function(rawArgs) {
     const today = new Date()
@@ -1799,38 +1762,21 @@ terminal.addFunction("groups", function(rawArgs) {
     }
 }, "display the groups of a user")
 
-terminal.addFunction("head", function(rawArgs, funcInfo) {
-    let openFileName = getSingleArg(rawArgs, funcInfo.funcName, "file")
-    if (openFileName == undefined) return
-    let namedArgs = extractNamedArgs(rawArgs)
-    let lines = namedArgs.lines || namedArgs.l || namedArgs.n || 10
-    if (lines < 1) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Invalid number of lines!\n`
-        return
-    }
-    for (let [fileName, file] of Object.entries(terminal.currFolder.content)) {
-        if (fileName == openFileName && (file.type == FileType.READABLE || file.type == FileType.PROGRAM)) {
-            if (!file.content) {
-                terminal.printf`${{[Color.RED]: "Error"}}: File is empty\n`
-            } else {
-                for (let line of file.content.split("\n").slice(0, lines)) {
-                    terminal.printLine(line)
-                }
-            }
-            return
-        } else if (fileName == openFileName) {
-            terminal.printf`${{[Color.RED]: "Error"}}: File is not READABLE\n`
-            return
-        }
-    }
-    terminal.printLine(`${openFileName}: file not found`)
-    terminal.printf`Use ${{[Color.COLOR_1]: "ls"}} to view available files\n`
-}, "display the first lines of a file")
+terminal.addCommand("head", function(args) {
+    let file = terminal.getFile(args.file)
+    if (file.content.length == 0)
+        throw new Error("File is empty")
+    let lines = file.content.split("\n")
+    let result = lines.slice(0, args.l).join("\n")
+    terminal.printLine(result)
+}, {
+    description: "display the first lines of a file",
+    args: ["file", "?l:n:1~1000"],
+    standardVals: {l: 10}
+})
 
-terminal.addFunction("whatis", function(rawArgs, funcInfo) {
-    let funcName = getSingleArg(rawArgs, funcInfo.funcName, "function-name")
-    if (funcName == undefined) return
-    if (funcName.trim() == "*") {
+terminal.addCommand("whatis", function(args) {
+    if (args.command == "*") {
         let maxFuncLength = terminal.functions.reduce((p, c) => Math.max(p, c.name.length), 0)
         let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
         for (let func of functions) {
@@ -1840,20 +1786,19 @@ terminal.addFunction("whatis", function(rawArgs, funcInfo) {
         }
         return
     }
-    let func = terminal.functions.find(x => x.name == funcName.trim())
-    if (func == undefined) {
-        terminal.printf`${{[Color.RED]: "Error"}}: function not found\n`
-        return
-    }
-    if (funcName.trim() == "whatis") {
-        terminal.printf`recursion!\n`
-        return
-    }
-    if (func.description)
-        terminal.printLine(`${funcName} - ${func.description}`)
-    else
-        terminal.printLine(`${funcName} - no description`)
-}, "get a short description of a command", true)
+
+    if (args.command == "whatis")
+        throw new Error("Recursion.")
+
+    let func = terminal.getFunction(args.command)
+    if (func == null)
+        throw new Error(`command not found: ${args.command}`)
+
+    terminal.printLine(`${func.name}: ${func.description}`)
+}, {
+    description: "display a short description of a command",
+    args: ["command"]
+})
 
 const START_TIME = Date.now()
 
@@ -1928,23 +1873,24 @@ terminal.addFunction("dir", function() {
     terminal.printf`Why not use ${{[Color.COLOR_1]: "ls"}}?\n`
 }, "list the files in the current directory")
 
-terminal.addFunction("reverse", function(rawArgs) {
-    let message = rawArgs.trim()
-    if (message.length == 0) {
-        terminal.printf`${{[Color.RED]: "Error"}}: No message provided!\n`
-        return
+terminal.addCommand("reverse", async function(args) {
+    let reversed = args.message.split("").reverse().join("")
+    terminal.printLine(reversed)
+    if (args.c) {
+        await navigator.clipboard.writeText(reversed)
+        terminal.printLine("Copied to Clipboard ✓", Color.COLOR_1)
     }
-    terminal.printLine(message.split("").reverse().join(""))
-}, "reverse a message")
+}, {
+    description: "reverse a message",
+    args: ["*message", "?c"]
+})
 
-terminal.addFunction("sleep", async function(rawArgs) {
-    let time = parseInt(rawArgs.trim())
-    if (time == NaN) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Invalid time!\n`
-        return
-    }
-    await sleep(time * 1000)
-}, "sleep for a number of seconds")
+terminal.addCommand("sleep", async function(args) {
+    await sleep(args.seconds * 1000)
+}, {
+    description: "sleep for a number of seconds",
+    args: ["seconds:n:0~1000000"]
+})
 
 const COW_SAY = ` 
 \\   ^__^
@@ -1953,8 +1899,8 @@ const COW_SAY = `
         ||----w |
         ||     ||
 `
-terminal.addFunction("cowsay", function(rawArgs) {
-    let message = rawArgs.trim()
+terminal.addCommand("cowsay", function(args) {
+    let message = args.message
     if (message.length == 0) {
         terminal.printf`${{[Color.RED]: "Error"}}: No message provided!\n`
         return
@@ -1967,7 +1913,10 @@ terminal.addFunction("cowsay", function(rawArgs) {
         output += stringMul(" ", Math.min(8, message.length + 4)) + line + "\n"
     }
     terminal.printLine(output.slice(0, -3))
-}, "let the cow say something")
+}, {
+    description: "let the cow say something",
+    args: ["*message"]
+})
 
 const COW_THINK = ` 
 o   ^__^
@@ -1976,8 +1925,8 @@ o   ^__^
         ||----w |
         ||     ||
 `
-terminal.addFunction("cowthink", function(rawArgs) {
-    let message = rawArgs.trim()
+terminal.addCommand("cowthink", function(args) {
+    let message = args.message
     if (message.length == 0) {
         terminal.printf`${{[Color.RED]: "Error"}}: No message provided!\n`
         return
@@ -1990,7 +1939,10 @@ terminal.addFunction("cowthink", function(rawArgs) {
         output += stringMul(" ", Math.min(8, message.length + 4)) + line + "\n"
     }
     terminal.printLine(output.slice(0, -3))
-}, "let the cow think something")
+}, {
+    description: "let the cow think something",
+    args: ["*message"]
+})
 
 terminal.addFunction("cmatrix", async function(rawArgs) {
     let [canvas, intervalFunc] = makeCMatrix()
@@ -2708,8 +2660,7 @@ terminal.addFunction("letters", function(rawArgs) {
     terminal.printLine(output)
 }, "draw the input in cool letters")
 
-terminal.addFunction("du", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["?folder"], {folder: null})
+terminal.addCommand("du", function(args) {
     let fileNames = []
     let fileSizes = []
     let totalSize = 0
@@ -2745,13 +2696,18 @@ terminal.addFunction("du", function(_, funcInfo) {
     if (fileNames.length == 0) {
         throw new Error("target-directory is empty")
     }
-}, "display disk usage of current directory")
+}, {
+    description: "display disk usage of current directory",
+    args: {folder: null}
+})
 
-terminal.addFunction("href", function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["url"])
+terminal.addCommand("href", function(args) {
     if (!args.url.startsWith("http")) args.url = "https://" + args.url
     window.open(args.url, "_blank").focus()
-}, "open a link in another tab")
+}, {
+    description: "open a link in another tab",
+    args: ["url"]
+})
 
 terminal.addFunction("pv", async function(rawArgs) {
     await terminal.animatePrint(rawArgs)
@@ -2874,8 +2830,9 @@ terminal.addCommand("grep", async function(args) {
                     }
                     matches.push({
                         filename: filename,
+                        filepath: file.path,
                         line: line,
-                        offset: offset
+                        offset: offset,
                     })
                 }
             }
@@ -2892,11 +2849,18 @@ terminal.addCommand("grep", async function(args) {
     }
 
     for (let match of matches) {
-        terminal.print(match.filename, Color.COLOR_1)
-        terminal.print(" : ")
+        terminal.printCommand(
+            match.filename,
+            `cat ${match.filepath}`,
+            Color.COLOR_1, false
+        )
+        terminal.print(": ")
         if (match.offset == -1) {
             terminal.print(match.line)
         } else {
+            let slicePoint = match.offset + 100
+            if (slicePoint < match.line.length)
+                match.line = match.line.slice(0, slicePoint) + "..."
             let prevLine = match.line.substring(0, match.offset)
             let matchLine = match.line.substring(match.offset, match.offset + args.pattern.length)
             let nextLine = match.line.substring(match.offset + args.pattern.length)
