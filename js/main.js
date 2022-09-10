@@ -86,8 +86,10 @@ class TerminalFunction {
             } else {
                 var output = this.func(...params)
             }
-            if (!(params.length == 2 && params[1] == false))
+            if (!(params.length == 2 && params[1] == false)
+            && !(params.length == 3 && params[2] == false)) {
                 this.terminal.finishFunction()
+            }
             return output
         } catch (e) {
             if (e instanceof IntendedError) {} else {
@@ -192,8 +194,8 @@ function getArgs(funcInfo, args, standardVals) {
     let outputArgs = {}
     let parsedExpected = []
     let parsedExpectedOptions = []
-    let argCount = 0
     standardVals = standardVals || {}
+    let argCount = 0
     for (let i = 0; i < args.length; i++) {
         let expectedArg = args[i]
         let expectedArgOptions = {
@@ -243,11 +245,21 @@ function getArgs(funcInfo, args, standardVals) {
         throw new IntendedError()
     }
 
+    if (namedArgs["help"] ||
+    (
+        namedArgs["h"] &&
+        namedArgs["e"] &&
+        namedArgs["l"] &&
+        namedArgs["p"]
+    )) {
+        error()
+    }
+
     function numError(argName, argOpts) {
         try {
             error()
         } catch {}
-        terminal.print(argName + " ", Color.COLOR_1)
+        terminal.print("<" + argName + "> ", Color.COLOR_1)
         terminal.print("must be a number")
         if (argOpts.min != null) {
             terminal.print(` between ${argOpts.min} and ${argOpts.max}`)
@@ -350,7 +362,7 @@ function extractNamedArgs(argStr) {
             let argValue = parsedArgs[parsedArgs.indexOf(arg) + 1]
             if (!argValue) argValue = true
             if (namedArgRegex.test(argValue)) argValue = true
-            if (arg.startsWith("-") && !arg.startsWith("--")) {
+            if (arg.startsWith("-") && !arg.startsWith("--") && arg.length > 2) {
                 for (let i = 0; i < argName.length; i++) {
                     let char = argName[i]
                     namedArgs[char] = true
@@ -566,7 +578,18 @@ class Terminal {
 
     constructor() {
         this.parentNode.addEventListener("click", function() {
-            if (this.currInput != null) {
+
+            function getSelectedText() {
+                var text = "";
+                if (typeof window.getSelection != "undefined") {
+                    text = window.getSelection().toString();
+                } else if (typeof document.selection != "undefined" && document.selection.type == "Text") {
+                    text = document.selection.createRange().text;
+                }
+                return text;
+            }
+
+            if (this.currInput != null && getSelectedText() == "") {
                 this.currInput.focus()
             }
         }.bind(this))
@@ -629,7 +652,7 @@ class Terminal {
         }
     }
 
-    addFunction(funcName, func, funcDescription, helpVisible) {
+    addFunction(funcName, func, funcDescription, helpVisible=false) {
         let terminalFunc = new TerminalFunction(
             this, funcName, funcDescription, func, helpVisible
         )
@@ -639,7 +662,7 @@ class Terminal {
 
     // same as addFunction but with argument support built-in
     addCommand(funcName, func, funcInfo) {
-        let helpVisible = funcInfo.helpVisible ?? true
+        let helpVisible = funcInfo.helpVisible ?? false
         let funcDescription = funcInfo.description ?? undefined
         let funcArgs = funcInfo.args ?? []
         let standardVals = funcInfo.standardVals ?? {}
@@ -732,6 +755,24 @@ class Terminal {
         pre.onclick = this.makeInputFunc(command)
         if (endLine) this.addLineBreak()
         return pre
+    }
+
+    printImg(src, altText="") {
+        let img = this.parentNode.appendChild(document.createElement("img"))
+        img.src = src
+        img.alt = altText
+        img.classList.add("terminal-img")
+        img.onload = function() {
+            img.style.aspectRatio = img.naturalWidth / img.naturalHeight
+            if (img.clientHeight < img.clientWidth) {
+                img.style.width = "auto"
+                img.style.height = `${img.clientHeight}px`
+            } else {
+                img.style.height = "auto"
+                img.style.width = `${img.clientWidth}px`
+            }
+        }
+        return img
     }
 
     printLink(msg, url, color=Color.WHITE, endLine=true) {
@@ -868,41 +909,44 @@ class Terminal {
 
         if (!configure) return
 
+        let tempTabKey = null
+        let tempTabIndex = 0
+
         inputElement.onkeydown = async function(event) {
             let key = event.key
             let currValue = inputElement.value.trim()
 
             if (event.ctrlKey && key != "Control") {
-                event.preventDefault()
-
                 if (key.toUpperCase() == "K") {
                     await this.getFunction("clear").run()
-                    return
+                    event.preventDefault()
                 }
-
-                inputElement.remove()
-                this.currInput = null
-                this.printLine(`^${key}`, Color.WHITE, false)
-                this.inputLine("")
             }
 
+            // tab autocomplete
             if (key == "Tab") {
                 event.preventDefault()
-                let tabMatchStr = currValue.split(/\s/).slice(-1).pop()
-                let possibleMatches = Object.keys(terminal.currFolder.content).concat(terminal.functions.map(f => f.name))
-                for (let possibleMatch of possibleMatches) {
-                    if (!tabMatchStr) continue
-                    if (possibleMatch.startsWith(tabMatchStr)) {
-                        let splitInput = currValue.split(/\s/)
-                        splitInput.pop()
-                        let preTabMatchStr = splitInput.join(" ")
-                        if (preTabMatchStr)
-                            inputElement.value = `${preTabMatchStr} ${possibleMatch}`
-                        else
-                            inputElement.value = possibleMatch
-                        return
-                    }
-                }
+                let tabMatchStr = tempTabKey ?? currValue.split(/\s/).slice(-1).pop()
+                const allRelativeFiles = getAllFiles("path", terminal.currFolder)
+                    .map(p => p.slice(terminal.currFolder.path.length + 1))
+                    .concat(getAllFiles("path", terminal.rootFolder))
+                let possibleMatches = terminal.functions.map(f => f.name)
+                    .concat(allRelativeFiles)
+                    .filter(f => f.startsWith(tabMatchStr))
+                
+                if (possibleMatches.length == 0) return
+
+                let match = possibleMatches[tempTabIndex % possibleMatches.length]
+                tempTabKey = tabMatchStr
+                tempTabIndex++
+
+                let newInput = currValue.split(/\s/).slice(0, -1).join(" ")
+                if (newInput != "") newInput += " "
+                newInput += match
+                inputElement.value = newInput
+            } else {
+                tempTabKey = null
+                tempTabIndex = 0
             }
 
             if (key == "Enter") {
@@ -942,7 +986,7 @@ class Terminal {
         return this.prevCommands[this.prevCommands.length - 1]
     }
 
-    async inputLine(inputStr) {
+    async inputLine(inputStr, callFinishFunction=true) {
         if (inputStr.length > 0 && inputStr != this.lastCommand) 
             this.prevCommands.push(inputStr)
         
@@ -972,7 +1016,7 @@ class Terminal {
             await foundFunction.run(argString, {
                 funcName: functionText,
                 rawArgs: argString
-            })
+            }, callFinishFunction)
             return
         } else if (!inputStr) {
             this.finishFunction(false)
@@ -1011,6 +1055,7 @@ class Terminal {
                 let smallestDistance = Infinity
                 const allRelativeFiles = getAllFiles("path", terminal.currFolder)
                     .map(p => p.slice(terminal.currFolder.path.length + 1))
+                    .concat(getAllFiles("path", terminal.rootFolder))
                 for (let name of allRelativeFiles) {
                     let fileName = removeFileExtension(name)
                     let filePath = removeFileExtension(path)
@@ -1030,7 +1075,14 @@ class Terminal {
 
             throw new IntendedError()
         }
+
         let currFile = targetFolder ?? this.currFolder
+
+        if (path.startsWith("home/")) {
+            currFile = this.rootFolder
+            path = path.slice(5)
+        }
+
         for (let item of strToPath(path)) {
             if (currFile.type == FileType.FOLDER) {
                 if (item in currFile.content) {
