@@ -52,6 +52,10 @@ The page is build to work like a Unix-Terminal, including:
   * play `chess`
   * play `4inarow` (connect 4)
   * play `tictactoe`
+  * play `lunar-lander`
+  * play `tetris`
+  * play `snake`
+  * play `2048`
 
 ## Commands
 
