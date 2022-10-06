@@ -56,6 +56,7 @@ The page is build to work like a Unix-Terminal, including:
   * play `tetris`
   * play `snake`
   * play `2048`
+  * play `stacker`
 
 ## Commands
 
@@ -160,6 +161,7 @@ The following list can also be viewed using the `whatis *` command
 | `snake`          | play snake                                        |
 | `solve`          | solve a mathematical equation for x               |
 | `sort`           | undefined                                         |
+| `stacker`        | play a stacker game                               |
 | `style`          | change the style of the terminal                  |
 | `sudo`           | try to use sudo                                   |
 | `tac`            | tnetnoc elif daer                                 |
