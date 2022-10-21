@@ -68,8 +68,8 @@ The following list can also be viewed using the `whatis *` command
 | `!`              | run a command from history                        |
 | `./`             | alias for 'run'                                   |
 | `<`              | alias for 'cat'                                   |
-| `2048`           | play 2048                                         |
-| `4inarow`        | play a game of 4 in a row (beatable)              |
+| `2048`           | play a game of 2048                               |
+| `4inarow`        | play a game of Connect Four against the computer  |
 | `alias`          | create a new alias for a given function           |
 | `background`     | change the background color of the terminal       |
 | `bc`             | compute the value of a mathematical expression    |
@@ -80,7 +80,7 @@ The following list can also be viewed using the `whatis *` command
 | `cat`            | print file content                                |
 | `cd`             | change current directory                          |
 | `ceasar`         | encrypt a text using the ceasar cipher            |
-| `chess`          | play a game of chess (beatable)                   |
+| `chess`          | play a game of chess against the computer         |
 | `clear`          | clear the terminal                                |
 | `clock`          | display the current time                          |
 | `cmatrix`        | feel cool, be hacker                              |
@@ -96,7 +96,7 @@ The following list can also be viewed using the `whatis *` command
 | `derivative`     | take the derivative of a term                     |
 | `dir`            | list the files in the current directory           |
 | `donut`          | do the spinny donut.c                             |
-| `download`       | download a local file                             |
+| `download`       | download a file                                   |
 | `du`             | display disk usage of current directory           |
 | `echo`           | print a line of text                              |
 | `edit`           | edit a file of the current directory              |
@@ -108,13 +108,14 @@ The following list can also be viewed using the `whatis *` command
 | `fizzbuzz`       | do the fizzbuzz                                   |
 | `foreground`     | change the foreground color of the terminal       |
 | `frequency`      | play a given frequency for a given amount of time |
+| `games`          | list all games                                    |
 | `get`            | get a value from the server                       |
 | `github`         | alias for 'run home/github.exe'                   |
 | `grep`           | search for a pattern in a file                    |
 | `groups`         | display the groups of a user                      |
 | `head`           | display the first lines of a file                 |
 | `helloworld`     | display the hello-world text                      |
-| `help`           | show this help menu                               |
+| `help`           | shows this help menu                              |
 | `hi`             | say hello to the terminal                         |
 | `hidebtns`       | hide the terminal buttons                         |
 | `history`        | undefined                                         |
@@ -130,9 +131,10 @@ The following list can also be viewed using the `whatis *` command
 | `lscpu`          | get some helpful info about your cpu              |
 | `lsusb`          | list all usb devices                              |
 | `lunar-lander`   | play a classic game of moon-lander                |
+| `man`            | show the manual page for a command                |
 | `mandelbrot`     | draw the mandelbrot set                           |
 | `melody`         | open the melody-maker                             |
-| `mill2player`    | play the mill game with 2 players                 |
+| `mill2player`    | play a game of mill with a friend locally         |
 | `mkdir`          | create a new directory                            |
 | `morse`          | translate latin to morse or morse to latin        |
 | `mv`             | move a file                                       |
@@ -158,15 +160,14 @@ The following list can also be viewed using the `whatis *` command
 | `shutdown`       | shutdown the website... or not?                   |
 | `sl`             | steam locomotive                                  |
 | `sleep`          | sleep for a number of seconds                     |
-| `snake`          | play snake                                        |
+| `snake`          | play a game of snake                              |
 | `solve`          | solve a mathematical equation for x               |
 | `sort`           | undefined                                         |
-| `stacker`        | play a stacker game                               |
 | `style`          | change the style of the terminal                  |
 | `sudo`           | try to use sudo                                   |
 | `tac`            | tnetnoc elif daer                                 |
 | `tetris`         | play a classic game of tetris                     |
-| `tictactoe`      | play a game of tictactoe (beatable)               |
+| `tictactoe`      | play a game of tic tac toe against the computer.  |
 | `timer`          | start a timer                                     |
 | `todo`           | manage todo lists                                 |
 | `touch`          | create a file in the current directory            |
