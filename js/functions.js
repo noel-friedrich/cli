@@ -48,7 +48,10 @@ terminal.addCommand("ls", function(args) {
 }, {
     helpVisible: true,
     description: "list all files of current directory",
-    args: ["?folder", "?r"],
+    args: {
+        "?folder": "folder to list",
+        "?r": "list recursively",
+    },
     standardVals: {folder: ""}
 })
 
@@ -73,6 +76,7 @@ terminal.addCommand("cd", function(args) {
 
     let targetFolder = terminal.getFile(args.directory, FileType.FOLDER)
     terminal.currPath = targetFolder.pathArray
+    terminal.updatePath()
 }, {
     helpVisible: true,
     args: ["directory"],
@@ -81,8 +85,7 @@ terminal.addCommand("cd", function(args) {
 
 {
     function makeCatFunc(readFunc) {
-        return async function(_, funcInfo) {
-            let args = getArgs(funcInfo, ["file"])
+        return async function(args) {
             let file = terminal.getFile(args.file)
             if (file.type == FileType.FOLDER) 
                 throw new Error("Cannot read directory data")
@@ -105,21 +108,35 @@ terminal.addCommand("cd", function(args) {
         }
     }
 
-    {
-        let normalCatFunc = makeCatFunc(content => terminal.printLine(content))
-        terminal.addFunction("cat", normalCatFunc, "read file content", true)
-        terminal.addFunction("<", normalCatFunc, "alias for 'cat'")
-        terminal.addFunction("open", normalCatFunc, "alias for 'cat'")
+    function addCatFunc(name, func, description, helpVisible=false) {
+        terminal.addCommand(name, func, {
+            helpVisible,
+            description: description,
+            args: ["file"],
+        })
     }
 
-    terminal.addFunction("tac", makeCatFunc(function(content) {
+    let normalCatFunc = makeCatFunc((content, _, file) => {
+        if (file.type == FileType.PROGRAM) {
+            terminal.printLink(content, content)
+        } else {
+            terminal.printLine(content)
+        }
+    })
+
+    addCatFunc("cat", normalCatFunc, "print file content", true)
+    addAlias("<", "cat")
+    addAlias("open", "cat")
+
+    addCatFunc("tac", makeCatFunc(function(content) {
         let lines = content.split("\n")
         for (var i = lines.length - 1; i >= 0; i--) {
-            terminal.printLine(lines[i])
+            let reversedLine = lines[i].split("").reverse().join("")
+            terminal.printLine(reversedLine)
         }
     }), "tnetnoc elif daer")
 
-    terminal.addFunction("sort", makeCatFunc(function(content) {
+    terminal.addCommand("sort", makeCatFunc(function(content) {
         let lines = content.split("\n")
         lines.sort()
         for (var i = 0; i < lines.length; i++) {
@@ -141,14 +158,22 @@ terminal.addCommand("cd", function(args) {
             } else {
                 terminal.printLine("You will be redirected to:")
                 terminal.printLink(content, content)
-                terminal.printf`${{[Color.COLOR_1]: "Ctrl+C"}} to abort\n`
-                await sleep(2000)
+                terminal.printf`${{[Color.COLOR_1]: "Ctrl+C"}} to abort (`
+                let secondsElement = terminal.print("3")
+                terminal.printLine("s)")
+                await sleep(1000)
+                secondsElement.textContent = "2"
+                await sleep(1000)
+                secondsElement.textContent = "1"
+                await sleep(1000)
+                secondsElement.textContent = "0"
+                await sleep(1000)
                 window.location.href = content
             }
         })
 
-        terminal.addFunction("./", runFunc, "alias for 'run'")
-        terminal.addFunction("run", runFunc, "run a .exe file")
+        addCatFunc("./", runFunc, "alias for 'run'")
+        addCatFunc("run", runFunc, "run a .exe file")
 
     }
 
@@ -173,7 +198,7 @@ terminal.addCommand("wc", function(args) {
     args: ["file"]
 })
 
-terminal.addFunction("whoami", function() {
+terminal.addCommand("compliment", function() {
     function startsWithVowel(word) {
         return (
             word.startsWith("a")
@@ -206,30 +231,80 @@ terminal.addFunction("whoami", function() {
         lastAdjective = choice(adjectives)
     }
     terminal.printLine(sentence)
-}, "get info about yourself")
+}, {
+    description: "get info about yourself"
+})
+
+terminal.addCommand("whoami", async function() {
+    terminal.printLine("fetching data...")
+
+    function capitalize(str) {
+        return str[0].toUpperCase() + str.slice(1)
+    }
+
+    const infos = {
+        Localtime: new Date().toLocaleString(),
+        Timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        Pageon: window.location.pathname,
+        Referrer: document.referrer,
+        PreviousSites: history.length,
+        BrowserVersion1a: navigator.appVersion,
+        BrowserVersion1b: navigator.userAgent,
+        BrowserLanguage: navigator.language,
+        BrowserOnline: navigator.onLine,
+        BrowserPlatform: navigator.platform,
+        JavaEnabled: navigator.javaEnabled(),
+        DataCookiesEnabled: navigator.cookieEnabled,
+        ScreenWidth: screen.width,
+        ScreenHeight: screen.height,
+        WindowWidth: innerWidth,
+        WindowHeight: innerHeight,
+        AvailWidth: screen.availWidth,
+        AvailHeights: screen.availHeight,
+        ScrColorDepth: screen.colorDepth,
+        ScrPixelDepth: screen.pixelDepth,
+    }
+
+    try {
+        let response = await (await fetch("https://api.db-ip.com/v2/free/self")).json()
+        for (let [key, value] of Object.entries(response)) {
+            infos[capitalize(key)] = value
+        }
+    } catch {}
+
+    const longestInfoName = Math.max(...Object.keys(infos).map(k => k.length)) + 2
+    for (let [infoName, infoContent] of Object.entries(infos)) {
+        terminal.print(stringPadBack(infoName, longestInfoName), Color.COLOR_1)
+        terminal.printLine(infoContent)
+    }
+}, {
+    description: "get client info",
+    args: []
+})
 
 let evalJsEnv = newMathEnv()
 evalJsEnv.setValue("console", {log: m => {
     terminal.printf`${{[Color.WHITE]: String(m)}}\n`
 }, realLog: console.log})
 
-terminal.addFunction("eval", function(rawArgs) {
-    let [result, error] = evalJsEnv.eval(rawArgs)
+terminal.addCommand("eval", function(argString) {
+    let [result, error] = evalJsEnv.eval(argString)
     if (error) {
         terminal.printf`${{[Color.RED]: "Error"}}: ${{[Color.WHITE]: error}}\n`
     } else if (result !== undefined) {
         terminal.printf`${{[Color.rgb(38, 255, 38)]: ">>>"}} ${{[Color.WHITE]: String(result)}}\n`
     }
-}, "evaluate a javascript expression")
+}, {
+    description: "evaluate javascript code",
+    rawArgMode: true
+})
 
-terminal.addFunction("echo", function(inp) {
-    if (!inp) {
-        terminal.printLine(`You must supply an argument to print:`)
-        terminal.printf`${{[Color.COLOR_2]: "$"}} echo ${{[Color.COLOR_1]: "<argument>"}}\n`
-        return
-    }
-    terminal.printLine(inp)
-}, "echo your words")
+terminal.addCommand("echo", function(args) {
+    terminal.printLine(args.text)
+}, {
+    description: "print a line of text",
+    args: ["*text"]
+})
 
 function missingPermissions() {
     terminal.printf`${{[Color.RED]: "Error"}}: You do not have permission to use this command!\n`
@@ -248,8 +323,7 @@ terminal.addCommand("mkdir", function(args) {
     args: ["directory_name"]
 })
 
-terminal.addFunction("cp", async function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["file", "directory"])
+terminal.addCommand("cp", async function(args) {
     let file = terminal.getFile(args.file)
     if (["..", "-"].includes(args.directory)) {
         if (terminal.currFolder == terminal.rootFolder)
@@ -261,10 +335,12 @@ terminal.addFunction("cp", async function(_, funcInfo) {
         var directory = terminal.getFile(args.directory, FileType.FOLDER)
     }
     directory.content[file.name] = file.copy()
-}, "duplicate a file to another folder")
+}, {
+    description: "copy a file",
+    args: ["file", "directory"]
+})
 
-terminal.addFunction("mv", async function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["file", "directory"])
+terminal.addCommand("mv", async function(args) {
     let file = terminal.getFile(args.file)
     if (["..", "-"].includes(args.directory)) {
         if (terminal.currFolder == terminal.rootFolder)
@@ -277,46 +353,40 @@ terminal.addFunction("mv", async function(_, funcInfo) {
     }
     directory.content[file.name] = file.copy()
     delete file.parent.content[file.name]
-}, "move a file to a different directory")
+}, {
+    description: "move a file",
+    args: ["file", "directory"]
+})
 
-terminal.addFunction("rmdir", async function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["directory"])
+terminal.addCommand("rmdir", async function(args) {
     let directory = terminal.getFile(args.directory, FileType.FOLDER)
     if (Object.keys(directory.content).length > 0) {
         let msg = "the selected directory isn't empty. Continue?"
         await terminal.acceptPrompt(msg, false)
     }
     delete directory.parent.content[directory.name]
-}, "delete a directory including all its contents")
+}, {
+    description: "remove a directory",
+    args: ["directory"]
+})
 
-terminal.addFunction("rm", async function(_, funcInfo) {
-    let args = getArgs(funcInfo, ["file"])
+terminal.addCommand("rm", async function(args) {
     let file = terminal.getFile(args.file)
     if (file.type == FileType.FOLDER)
         throw new Error("cannot remove directory. use 'rmdir' instead")
     delete file.parent.content[file.name]
-}, "delete a file of the current directory")
+}, {
+    description: "remove a file",
+    args: ["file"]
+})
 
-terminal.addFunction("curl", function() {
+terminal.addCommand("curl", function() {
     terminal.print("this unfortunately doesn't work due to ")
     terminal.printLink("CORS", "https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS")
-}, "download a file from the internet")
+}, {description: "download a file from the internet", args: ["**"]})
 
-terminal.addFunction("edit", async function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 file name:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} edit ${{[Color.COLOR_1]: "<file>"}}'\n`
-        return
-    }
-
-    let fileName = parsedArgs[0]
-    let file = terminal.currFolder.find((n, v) => n == fileName && v.type != FileType.FOLDER)
-    if (!file) {
-        terminal.printf`${{[Color.RED]: "Error"}}: File ${{[Color.COLOR_1]: fileName}} not found\n`
-        return
-    }
-
+terminal.addCommand("edit", async function(args) {
+    let file = terminal.getFile(args.file)
     let fileLines = file.content.split("\n")
 
     function createInput(width) {
@@ -416,7 +486,10 @@ terminal.addFunction("edit", async function(rawArgs) {
             }
         }
     })
-}, "edit a file of the current directory")
+}, {
+    description: "edit a file of the current directory",
+    args: ["file"]
+})
 
 terminal.addCommand("touch", function(args) {
     if (!/^[a-zA-Z0-9\-\_]{1,20}(\.[a-zA-Z0-9]{1,10})*$/.test(args.filename))
@@ -430,16 +503,20 @@ terminal.addCommand("touch", function(args) {
     args: ["filename"]
 })
 
-terminal.addFunction("lsusb", function() {
-    terminal.printLine(`i'm a website. Where are the sub ports supposed to be?`)
-}, "list all USB devices")
+terminal.addCommand("lsusb", function() {
+    terminal.printLine(`i'm a website. Where are the USB ports supposed to be?`)
+}, {
+    description: "list all usb devices"
+})
 
-terminal.addFunction("exit", function() {
+terminal.addCommand("exit", function() {
     terminal.printLine(`please don't exit. please.`)
-}, "exit the terminal")
+}, {
+    description: "exit the terminal"
+})
 
-terminal.addFunction("color-test", async function() {
-    let size = {x: 61, y: 31}
+terminal.addCommand("color-test", function() {
+    let size = {x: 68, y: 31}
     for (let i = 0; i < size.y; i++) {
         for (let j = 0; j < size.x; j++) {
             let x = (j / size.x - 0.5) * 2
@@ -456,18 +533,12 @@ terminal.addFunction("color-test", async function() {
         }
         terminal.printLine()
     }
-}, "test the color functionality")
-
-function addAlias(alias, command) {
-    terminal.addFunction(alias, function() {
-        terminal.inputLine(command, false)
-    }, `alias for '${command}'`)
-}
+}, {description: "test the color capabilities of the terminal"})
 
 addAlias("tree", "ls -r")
 
-terminal.addFunction("style", async function(_, funcInfo) {
-    class Preset {
+terminal.addCommand("style", async function(args) {
+    class Preset {  
 
         constructor(b=undefined, f=undefined, c1="yellow", c2="rgb(139, 195, 74)", btn=null) {
             this.background = b
@@ -486,13 +557,11 @@ terminal.addFunction("style", async function(_, funcInfo) {
     PRESETS["fire"] = new Preset("linear-gradient(180deg, red, yellow)", "white")
     PRESETS["phebe"] = new Preset("linear-gradient(to right, red,orange,yellow,lightgreen,blue,indigo,violet)", "white")
     PRESETS["purple"] = new Preset("#371E30", "#F59CA9", "#DF57BC", "#F6828C")
-    PRESETS["slate"] = new Preset("#361d32", "#f1e8e6", "#f55951", "#f55951")
+    PRESETS["slate"] = new Preset("#282828", "#ebdbb2", "#d79921", "#98971a")
     PRESETS["red"] = new Preset("#e74645", "white", "#fdfa66", "#fdfa66", "#e74645")
     PRESETS["cold"] = new Preset("#3c2a4d", "#e0f0ea", "#95adbe", "#95adbe")
 
-    try {
-        var args = getArgs(funcInfo, ["preset"])
-    } catch {
+    if (args.preset == undefined) {
         terminal.printLine("There are a few presets to choose from:")
         let lineWidth = 0
         for (let presetName of Object.keys(PRESETS)) {
@@ -515,165 +584,162 @@ terminal.addFunction("style", async function(_, funcInfo) {
             continue
         terminal[attribute] = preset[attribute]
     }
-}, "change the style of the terminal")
+}, {
+    description: "change the style of the terminal",
+    args: ["?preset"],
+    standardVals: {
+        preset: undefined
+    }
+})
 
-let languageEvaluations = {
-    "py": "it's got everything: explicity, typing, great syntax, just speed is lacking",
-    "python2": "who really uses python2 nowadays? just update to python3",
-    "java": "not too fond of strict object oriented programming, but it's quite beginner friendly",
-    "ruby": "let me introduce: a worse python",
-    "html": "is this really supposed to be a programming language?",
-    "css": "secretely a big fan but don't tell anyone",
-    "js": "this one is just a mix of everything. it aged like milk",
-    "javascript": "this one is just a mix of everything. it aged like milk",
-    "jsx": "this one is just a mix of everything. it aged like milk",
-    "php": "i hate myself for using this one",
-    "lua": "i wish i could use lua more often - it's actually quite awesome",
-    "go": "liked the 8 hour long tutorial but have yet to use it",
-    "c": "i really want to hate it but its simplictiy and speed is just awesome",
-    "c++": "use this instead of c when you want complexity",
-    "c#": "java but better syntax - love it",
-    "kotlin": "c# but not from microsoft lol",
-    "swift": "what is this language? i don't know",
-    "rust": "c but 2020 version. A person that doesn't love rust hasn't used rust",
-    "hs": "functional programming requires so much brain power.\nyou automatically feel smarter when using it.\nLOVE IT!!",
-}
+terminal.addCommand("rate", function(args) {
+    let languageEvaluations = {
+        "py": "it's got everything: explicity, typing, great syntax, just speed is lacking",
+        "python2": "who really uses python2 nowadays? just update to python3",
+        "java": "not too fond of strict object oriented programming, but it's quite beginner friendly",
+        "ruby": "let me introduce: a worse python",
+        "html": "is this really supposed to be a programming language?",
+        "css": "secretely a big fan but don't tell anyone",
+        "js": "this one is just a mix of everything. it aged like milk",
+        "javascript": "this one is just a mix of everything. it aged like milk",
+        "jsx": "this one is just a mix of everything. it aged like milk",
+        "php": "i hate myself for using this one",
+        "lua": "i wish i could use lua more often - it's actually quite awesome",
+        "go": "liked the 8 hour long tutorial but have yet to use it",
+        "c": "i really want to hate it but its simplictiy and speed is just awesome",
+        "c++": "use this instead of c when you want complexity",
+        "c#": "java but better syntax - love it",
+        "kotlin": "c# but not from microsoft lol",
+        "swift": "what is this language? i don't know",
+        "rust": "c but 2020 version. A person that doesn't love rust hasn't used rust",
+        "hs": "functional programming requires so much brain power.\nyou automatically feel smarter when using it.\nLOVE IT!!",
+    }
+    
+    languageEvaluations["python"] = languageEvaluations["py"]
+    languageEvaluations["python3"] = languageEvaluations["py"]
+    languageEvaluations["javascript"] = languageEvaluations["js"]
+    languageEvaluations["jsx"] = languageEvaluations["js"]
+    languageEvaluations["csharp"] = languageEvaluations["c#"]
+    languageEvaluations["cpp"] = languageEvaluations["c++"]
+    languageEvaluations["haskell"] = languageEvaluations["hs"]
 
-languageEvaluations["python"] = languageEvaluations["py"]
-languageEvaluations["python3"] = languageEvaluations["py"]
-languageEvaluations["javascript"] = languageEvaluations["js"]
-languageEvaluations["jsx"] = languageEvaluations["js"]
-languageEvaluations["csharp"] = languageEvaluations["c#"]
-languageEvaluations["cpp"] = languageEvaluations["c++"]
-languageEvaluations["haskell"] = languageEvaluations["hs"]
+    if (languageEvaluations[args.language]) {
+        terminal.printLine(languageEvaluations[args.language])
+    } else {
+        terminal.printLine("i don't know that one")
+    }
+}, {
+    description: "rate a programming language",
+    args: ["language"]
+})
 
-for (let [language, evaluation] of Object.entries(languageEvaluations)) {
-    terminal.addFunction(language, function() {
-        terminal.printLine(evaluation)
-    }, `my evaluation of ${language} (programming language)`)
-}
+addAlias("github", "run home/github.exe")
 
-terminal.addFunction("top", function() {
-    terminal.printLine(`I have no idea how your machine is doing. Maybe ask another console?`)
-}, "display the top processes")
-
-terminal.addFunction("clear", async function() {
+terminal.addCommand("clear", async function() {
     window.location.reload()
     await sleep(1000)
     throw new Error("reloading failed.")
-}, "clear terminal window", true)
+}, {
+    description: "clear the terminal",
+    helpVisible: true
+})
 
-async function funnyPrint(msg) {
-    let colors = msg.split("").map(Color.niceRandom)
-    for (let i = 0; i < msg.length; i++) {
-        terminal.print(msg[i], colors[i])
-        await sleep(100)
-    }
-    terminal.addLineBreak()
-}
-
-terminal.addFunction("sudo", async function() {
-    let msg = "your mind tricks don't work on me jedi"
-    await funnyPrint(msg)
-}, "execute a command as root")
-
-const customFriendScores = {
-    "julius": 10.00,
-    "julius16": 10.00,
-    "klschlitzohr": 10.00,
-    "thejana": 10.00,
-    "fl0ris": 10.00,
-    "floris": 10.00,
-    "phebe": 10.00,
-    "justus": 10.00,
-    "erik": 9.80,
-    "zoe": 10.00,
-    "imprinzessa": 9.999
-}
-
-function randomFriendScore(friendName) {
-    function cyrb128(str) {
-        let h1 = 1779033703, h2 = 3144134277,
-            h3 = 1013904242, h4 = 2773480762;
-        for (let i = 0, k; i < str.length; i++) {
-            k = str.charCodeAt(i);
-            h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
-            h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
-            h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
-            h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+{
+    async function funnyPrint(msg) {
+        let colors = msg.split("").map(Color.niceRandom)
+        for (let i = 0; i < msg.length; i++) {
+            terminal.print(msg[i], colors[i])
+            await sleep(100)
         }
-        h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
-        h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
-        h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
-        h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
-        return [(h1^h2^h3^h4)>>>0, (h2^h1)>>>0, (h3^h1)>>>0, (h4^h1)>>>0];
+        terminal.addLineBreak()
     }
-    function mulberry32(a) {
-        return function() {
-          var t = a += 0x6D2B79F5;
-          t = Math.imul(t ^ t >>> 15, t | 1);
-          t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-          return ((t ^ t >>> 14) >>> 0) / 4294967296;
-        }
-    }
-    return Math.round((mulberry32(cyrb128(friendName)[0])() * 8 + 2) * 100) / 100
+
+    terminal.addCommand("sudo", async function() {
+        let password = await terminal.prompt("[sudo] password: ", true)
+        
+        if (password.length < 8)
+            throw new Error("Password too short")
+        if (password.length > 8)
+            throw new Error("Password too long")
+        if (password.match(/[A-Z]/))
+            throw new Error("Password must not contain uppercase letters")
+        if (password.match(/[a-z]/))
+            throw new Error("Password must not contain lowercase letters")
+        if (password.match(/[0-9]/))
+            throw new Error("Password must not contain numbers")
+        if (password.match(/[^a-zA-Z0-9]/))
+            throw new Error("Password must not contain special characters")
+
+        throw new Error("Password must not be a password")
+    }, {
+        description: "try to use sudo",
+        args: ["**"]
+    })
+
+    terminal.addCommand("hi", async () => await funnyPrint("hello there!"), {description: "say hello to the terminal"})
+
 }
 
-terminal.addFunction("f", function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply 1 friend:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} f ${{[Color.COLOR_1]: "<friend_name>"}}'\n`
-        return
+terminal.addCommand("f", function(args) {
+    const customFriendScores = {
+        "julius": 10.00,
+        "julius16": 10.00,
+        "klschlitzohr": 10.00,
+        "thejana": 10.00,
+        "fl0ris": 10.00,
+        "floris": 10.00,
+        "phebe": 10.00,
+        "justus": 10.00,
+        "erik": 9.80,
+        "zoe": 10.00,
+        "imprinzessa": 9.999
+    }
+    
+    function randomFriendScore(friendName) {
+        function cyrb128(str) {
+            let h1 = 1779033703, h2 = 3144134277,
+                h3 = 1013904242, h4 = 2773480762;
+            for (let i = 0, k; i < str.length; i++) {
+                k = str.charCodeAt(i);
+                h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+                h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+                h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+                h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+            }
+            h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+            h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+            h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+            h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+            return [(h1^h2^h3^h4)>>>0, (h2^h1)>>>0, (h3^h1)>>>0, (h4^h1)>>>0];
+        }
+        function mulberry32(a) {
+            return function() {
+              var t = a += 0x6D2B79F5;
+              t = Math.imul(t ^ t >>> 15, t | 1);
+              t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+              return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+        return Math.round((mulberry32(cyrb128(friendName)[0])() * 8 + 2) * 100) / 100
     }
 
-    let friendName = String(parsedArgs[0]).toLowerCase()
+    let friendName = args.friend.toLowerCase()
     let friendScore = randomFriendScore(friendName)
 
     if (friendName in customFriendScores) friendScore = customFriendScores[friendName]
 
-    terminal.printf`Friendship-Score with ${{[Color.ORANGE]: friendName}}: ${{[Color.COLOR_1]: String(friendScore) + "/10"}}\n`
-}, "display the friendship-score of a friend")
+    terminal.printf`Friendship-Score with ${{[Color.ORANGE]: args.friend}}: ${{[Color.COLOR_1]: String(friendScore) + "/10"}}\n`
+}, {
+    description: "calculate friendship score with a friend",
+    args: ["friend"]
+})
 
-let aptFunc = async function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length == 0) {
-        terminal.printf`${{[Color.RED]: "Error"}}: apt ... what?\n`
-        return
-    }
-    terminal.printLine("Okay sure let me do some things...")
-    isWaiting = true
-    await sleep(1000)
-    terminal.printLine("Initiating self destruction...")
-    await sleep(500)
-    terminal.print("[")
-    for (let i = 0; i < 30; i++) {
-        terminal.print("#")
-        await sleep(100)
-    }
-    terminal.printLine("]")
-    await sleep(1000)
-    isWaiting = false
-    terminal.printLine("Finished.")
-}
-
-terminal.addFunction("apt", aptFunc, "apititude package manager")
-terminal.addFunction("apt-get", aptFunc, "apititude package manager")
-
-function brainfuckFunc(rawArgs) {
-    
-    let parsedArgs = parseArgs(rawArgs, false)
-    if (parsedArgs.length != 1) {
-        terminal.printLine(`You must supply the brainfuck code:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} brainfuck ${{[Color.COLOR_1]: "<code>"}}'\n`
-        return
-    }
-    
+terminal.addCommand("brainfuck", function(args) {
     const codeLib = {
         "test": "++++[>++++<-]>[>++++<-]",
         "helloworld": "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.",
     }
-    
+
     class BrainFuckInterpreter {
 
         constructor(outFunc, inFunc) {
@@ -681,7 +747,7 @@ function brainfuckFunc(rawArgs) {
             this.inFunc = inFunc
             this.instructionLimit = 1000000
         }
-    
+
         interpret(code) {
             let memory = [0]
             let currPtr = 0
@@ -751,11 +817,11 @@ function brainfuckFunc(rawArgs) {
 
             return memory
         }
-    
+
     }
 
     let outputtedSomething = false
-    
+
     let interpreter = new BrainFuckInterpreter(
         function(msg) {
             terminal.printf`${{[Color.rgb(38, 255, 38)]: msg}}`
@@ -763,7 +829,7 @@ function brainfuckFunc(rawArgs) {
         }
     )
 
-    let code = parsedArgs[0]
+    let code = args.code
     if (Object.keys(codeLib).includes(code.toLowerCase())) {
         code = codeLib[code.toLowerCase()]
     }
@@ -791,10 +857,12 @@ function brainfuckFunc(rawArgs) {
         terminal.printf`Memory:\n`
     }
     printMemory(memoryResult)
-}
+}, {
+    description: "parse given brainfuck code",
+    args: ["*code"]
+})
 
-terminal.addFunction("brainfuck", brainfuckFunc, "parse given brainfuck code")
-terminal.addFunction("bf", brainfuckFunc, "parse given brainfuck code")
+addAlias("bf", "brainfuck")
 
 terminal.addFunction("alias", function(rawArgs, funcInfo) {
     let args = getArgs(funcInfo, ["alias", "command"])
@@ -817,9 +885,9 @@ terminal.addFunction("alias", function(rawArgs, funcInfo) {
 
 terminal.addFunction("lscmds", async function(rawArgs) {
     let namedArgs = extractNamedArgs(rawArgs)
+    let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
     if (namedArgs.md) {
         let maxFuncLength = terminal.functions.reduce((p, c) => Math.max(p, c.name.length), 0)
-        let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
         const allDescriptions = functions.map(f => f.description ? f.description : "undefined")
         let maxDescLength = allDescriptions.reduce((p, c) => Math.max(p, c.length), 0)
         let text = ""
@@ -836,7 +904,7 @@ terminal.addFunction("lscmds", async function(rawArgs) {
     }
 
     let tempLine = ""
-    for (let terminalFunc of terminal.functions) {
+    for (let terminalFunc of functions) {
         tempLine += terminalFunc.name
         terminal.printCommand(terminalFunc.name, terminalFunc.name, Color.WHITE, false)
         terminal.print(" ")
@@ -1231,7 +1299,13 @@ terminal.addCommand("solve", async function(args) {
     }
 }, {
     description: "solve a mathematical equation for x",
-    args: ["*equation", "?i:n:1~5", "?m:n:1~100000", "?l:n", "?u:n"],
+    args: {
+        "*equation": "the equation to solve",
+        "?i:n:1~5": "the number of iteration-steps to perform",
+        "?m:n:1~100000": "the maximum number of total iterations to perform",
+        "?l:n": "the lower bound of the search interval",
+        "?u:n": "the upper bound of the search interval"
+    },
     standardVals: {
         i: 4,
         m: 100000,
@@ -1248,7 +1322,7 @@ terminal.addCommand("plot", async function(args) {
         return
     }
     let gridSize = {
-        x: 60,
+        x: 67,
         y: 30
     }
     while (/[0-9]x/g.test(equation))
@@ -1379,15 +1453,17 @@ terminal.addCommand("plot", async function(args) {
     }
 }, {
     description: "plot a mathematical function within bounds",
-    args: [
-        "equation",
-        "?xmin:n:-1000~1000", "?xmax:n:-1000~1000",
-        "?ymin:n:-1000~1000", "?ymax:n:-1000~1000",
-        "?playtime:n:0~10000"
-    ],
+    args: {
+        "equation": "the equation to plot",
+        "?xmin:n:-1000~1000": "the minimum x value",
+        "?xmax:n:-1000~1000": "the maximum x value",
+        "?ymin:n:-1000~1000": "the minimum y value",
+        "?ymax:n:-1000~1000": "the maximum y value",
+        "?playtime:n:0~10000": "the time to play the sound for in milliseconds"
+    },
     standardVals: {
-        xmin: -Math.PI, xmax: Math.PI,
-        ymin: -Math.PI, ymax: Math.PI,
+        xmin: -3, xmax: 3.1,
+        ymin: -3, ymax: 3.1,
         playtime: 2500
     }
 })
@@ -1415,8 +1491,6 @@ terminal.addCommand("foreground", function(args) {
     description: "change the foreground color of the terminal",
     args: ["color"]
 })
-
-terminal.addFunction("hi", async () => await funnyPrint("hello there!"), "say hello to the terminal")
 
 terminal.addCommand("whatday", function(args) {
 
@@ -1536,7 +1610,7 @@ terminal.addCommand("whatday", function(args) {
     args: ["DD.MM.YYYY"]
 })
 
-terminal.addFunction("cal", async function(rawArgs) {
+terminal.addCommand("cal", async function(args) {
     const today = new Date()
 
     const monthNames = [
@@ -1593,10 +1667,8 @@ terminal.addFunction("cal", async function(rawArgs) {
     let chosenYear = null
     let chosenMonth = null
 
-    let arguments = rawArgs.trim().split(" ").map(a => a.trim()).filter(a => a.length > 0)
-
     argument_loop:
-    for (let argument of arguments) {
+    for (let argument of Object.values(args).filter(i => i != undefined)) {
         for (let month of monthNames) {
             if (month.toLowerCase().startsWith(argument.toLowerCase())) {
                 chosenMonth = monthNames.indexOf(month)
@@ -1643,7 +1715,10 @@ terminal.addFunction("cal", async function(rawArgs) {
         printMonth(chosenMonth, chosenYear)
     }
 
-}, "display the calendar of the current month")
+}, {
+    description: "print a calendar",
+    args: ["?month", "?year"]
+})
 
 terminal.addFunction("bc", async function() {
     while (true) {
@@ -1807,28 +1882,29 @@ terminal.addFunction("w", function() {
     terminal.printf`${{[Color.COLOR_1]: "root"}}   ${{[Color.LIGHT_GREEN]: ((Date.now() - START_TIME) / 1000) + "s"}}\n`
 }, "show the active users and their time elapsed")
 
-terminal.addFunction("history", function() {
+terminal.addCommand("history", function() {
     for (let i = Math.max(0, terminal.prevCommands.length - 1000); i < terminal.prevCommands.length; i++) {
-        terminal.printf`${{[Color.COLOR_1]: stringPad(String(i + 1), 5)}}: ${{[Color.WHITE]: terminal.prevCommands[i]}}\n`
+        terminal.printCommand(stringPad(String(i + 1), 5), `!${i + 1}`, Color.COLOR_1, false)
+        terminal.printLine(`  ${terminal.prevCommands[i]}`)
     }
 }, "show the last 1000 commands")
 
-function runCommandFunc(rawArgs) {
-    let num = parseInt(rawArgs.trim())
-    if (num == NaN) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Invalid command number!\n`
-        return
-    }
-    let command = terminal.prevCommands[num - 1]
-    if (command == undefined) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Command at index not found!\n`
-        return
-    }
-    terminal.inputLine(command)
-}
+{
+    terminal.addCommand("!", function(args) {
+        let index = args.index - 1
+        let command = terminal.prevCommands[index]
+        if (command == undefined) {
+            terminal.printf`${{[Color.RED]: "Error"}}: Command at index not found!\n`
+            return
+        }
+        terminal.inputLine(command, false, false)
+    }, {
+        description: "run a command from history",
+        args: ["index:n:1~100000"]
+    })
 
-terminal.addFunction("runfunc", runCommandFunc, "run a function of 'history'")
-terminal.addFunction("!", runCommandFunc, "alias for 'runfunc'")
+    addAlias("runfunc", "!")
+}
 
 terminal.addFunction("lscpu", function() {
     terminal.printLine("your computer probably has a cpu!")
@@ -1882,7 +1958,10 @@ terminal.addCommand("reverse", async function(args) {
     }
 }, {
     description: "reverse a message",
-    args: ["*message", "?c"]
+    args: {
+        "*message": "the message to reverse",
+        "?c": "copy the reversed message to the clipboard"
+    }
 })
 
 terminal.addCommand("sleep", async function(args) {
@@ -1957,9 +2036,9 @@ terminal.addFunction("cmatrix", async function(rawArgs) {
     while (!stopped) {
         await sleep(100)
     }
-}, "feel cool, be hacker", true)
+}, "feel cool, be hacker")
 
-terminal.addFunction("download", function(_, funcInfo) {
+terminal.addCommand("download", function(args) {
     function downloadFile(fileName, file) {
         let element = document.createElement('a')
         if (file.type == FileType.DATA_URL)
@@ -1974,12 +2053,14 @@ terminal.addFunction("download", function(_, funcInfo) {
         document.body.removeChild(element)
     }
 
-    let args = getArgs(funcInfo, ["file"])
     let file = terminal.getFile(args.file)
     if (file.type == FileType.FOLDER)
         throw new Error("cannot download directory")
     downloadFile(file.name, file)
-}, "download a local file")
+}, {
+    description: "download a file",
+    args: {"file": "the file to download"}
+})
 
 function fetchWithParam(url, params) {
     let query = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join("&")
@@ -2287,7 +2368,7 @@ terminal.addFunction("clock", async function(rawArgs) {
     let namedArgs = extractNamedArgs(rawArgs)
     let displayMillis = !!namedArgs.millis
     let gridSize = {
-        x: 36,
+        x: 20*2.2,
         y: 20
     }
     let grid = Array.from(Array(gridSize.y)).map(() => Array(gridSize.x).fill(" "))
@@ -2490,7 +2571,8 @@ terminal.addFunction("bmi", async function() {
         evaluation = "superhuman!"
     }
     terminal.printLine(`Your diagnosis: ${evaluation}`)
-    terminal.printLine("source: en.wikipedia.org/wiki/Body_mass_index")
+    terminal.print("source: ")
+    terminal.printLink("https://de.wikipedia.org/wiki/Body-Mass-Index")
 }, "calculate a body-mass-index")
 
 terminal.addFunction("mandelbrot", async function(rawArgs) {
@@ -2878,4 +2960,27 @@ terminal.addCommand("grep", async function(args) {
 }, {
     description: "search for a pattern in a file",
     args: ["pattern", "*file", "?r", "?i", "?v", "?x"],
+})
+
+terminal.addCommand("man", function(args) {
+    let command = terminal.getFunction(args.command)
+    if (command == null) {
+        throw new Error(`No manual entry for ${args.command}`)
+    }
+    if (args.command == "man") {
+        throw new Error("Recursion.")
+    }
+    terminal.printLine("description: \"" + command.description + "\"")
+    if (command.args.length == 0) {
+        terminal.printLine("args: doesn't accept any arguments")
+    } else {
+        getArgs({
+            rawArgs: "--help",
+            funcName: args.command,
+        }, command.args, command.standardVals, command.argDescriptions)
+    }
+}, {
+    description: "show the manual page for a command",
+    args: {"command": "the command to show the manual page for"},
+    helpVisible: true
 })
