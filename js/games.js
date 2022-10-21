@@ -143,7 +143,7 @@ class Vector2d {
 
 }
 
-terminal.addFunction("tictactoe", async function() {
+terminal.addCommand("tictactoe", async function(args) {
     const N = " "
     const X = "X"
     const O = "O"
@@ -265,18 +265,16 @@ terminal.addFunction("tictactoe", async function() {
         terminal.printLine("It's a draw!")
     }
 
-}, "play a game of tictactoe (beatable)")
+}, {
+    description: "play a game of tic tac toe against the computer.",
+    isGame: true
+})
 
-terminal.addFunction("4inarow", async function(rawArgs) {
+terminal.addCommand("4inarow", async function(args) {
     const N = " ", X = "X", O = "O"
     let field = Array.from(Array(6)).map(() => Array(7).fill(N))
 
-    let DEPTH = 5
-
-    if (/^[1-9]$/.test(rawArgs.trim())) {
-        DEPTH = parseInt(rawArgs.trim())
-        terminal.printLine(`Set search-depth to ${DEPTH}`)
-    }
+    let DEPTH = args.depth
 
     function printField(f=field) {
         const betweenRow = "+---+---+---+---+---+---+---+"
@@ -628,9 +626,18 @@ terminal.addFunction("4inarow", async function(rawArgs) {
     } else {
         terminal.printLine("It's a draw!")
     }
-}, "play a game of 4 in a row (beatable)")
+}, {
+    description: "play a game of Connect Four against the computer",
+    args: {
+        "?depth": "The depth of the search tree",
+    },
+    standardVals: {
+        depth: 4
+    },
+    isGame: true
+})
 
-terminal.addFunction("chess", async function() {
+terminal.addCommand("chess", async function() {
     let board = new ChessBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 
     function makeComputerMove() {
@@ -665,9 +672,12 @@ terminal.addFunction("chess", async function() {
         makeComputerMove()
     }
     
-}, "play a game of chess (beatable)")
+}, {
+    description: "play a game of chess against the computer",
+    isGame: true
+})
 
-terminal.addFunction("mill2player", async function() {
+terminal.addCommand("mill2player", async function() {
 
     //     #-----------#-----------#
     //     |           |
@@ -915,7 +925,10 @@ terminal.addFunction("mill2player", async function() {
     let winner = (countStones(X) > countStones(O)) ? X : O
     terminal.printLine(`the winner is: ${winner}`)
 
-}, "play the mill game with 2 players")
+}, {
+    description: "play a game of mill with a friend locally",
+    isGame: true
+})
 
 terminal.addCommand("snake", async function(args) {
     const width = 30
@@ -1096,9 +1109,10 @@ terminal.addCommand("snake", async function(args) {
 
     removeEventListener("keydown", listener)
 }, {
-    description: "play snake",
-    args: ["?s:n:1~10"],
-    standardVals: {s: 2}
+    description: "play a game of snake",
+    args: {"?s:n:1~10": "speed level of snake moving"},
+    standardVals: {s: 2},
+    isGame: true
 })
 
 terminal.addCommand("2048", async function(args) {
@@ -1290,7 +1304,8 @@ terminal.addCommand("2048", async function(args) {
     else
         terminal.printLine(`  You won!`, Color.COLOR_1)
 }, {
-    description: "play 2048"
+    description: "play a game of 2048",
+    isGame: true
 })
 
 let secretShip = null
@@ -1559,28 +1574,12 @@ terminal.addCommand("lunar-lander", async function(args) {
             return points
         }
 
-        get flamePoints() {
-            let timeDelta = ((Date.now() - startTime) % 200) / 200
-            let flameOffset = this.thrust + (Math.sin(timeDelta * Math.PI * 2) + 1) / 2 * 0.3
-            let points = [
-                new Vector2d(0, this.size / 2 + 1),
-                new Vector2d(this.size / 2, this.size / 1.41 + 2),
-                new Vector2d(0, this.size * 0.5 + this.size * 2 * flameOffset),
-                new Vector2d(-this.size / 2, this.size / 1.41 + 2)
-            ]
-            for (let point of points) {
-                point.irotate(this.rotation)
-                point.iadd(this.midPoint)
-            }
-            return points
-        }
-
         crash() {
             if (this.crashed)
                 return
             this.crashed = true
             this.crashTime = Date.now()
-            for (let i = 0; i < 1000; i++) {
+            for (let i = 0; i < args.particles * 100; i++) {
                 let particle = new Particle(this.pos.x, this.pos.y, 3000)
                 particle.velocity = Vector2d.random().scale((this.speed + 0.1) * 0.0005 * Math.random())
                 this.particles.push(particle)
@@ -1597,16 +1596,16 @@ terminal.addCommand("lunar-lander", async function(args) {
                 let particle = new Particle(
                     this.pos.x,
                     this.pos.y,
-                    3000, {r: 192, g: 105, b: 64},
+                    Math.random() * 4000, {r: 192, g: 105, b: 64},
                     particleDirection.scale(particleSpeed)
                 )
                 particle.size = 5
                 this.particles.push(particle)
             }
 
-            for (let i = 0; i < 10; i++)
-            if (Math.random() < this.thrust)
-                spawnParticle()
+            for (let i = 0; i < args.particles; i++)
+                if (Math.random() < this.thrust)
+                    spawnParticle()
         }
 
         update(deltaTime, landscape) {
@@ -1681,8 +1680,6 @@ terminal.addCommand("lunar-lander", async function(args) {
             if (this.crashed)
                 return
             drawPoints(this.points, "white", "fill")
-            //if (this.thrust > 0)
-            //    drawPoints(this.flamePoints, "red", "stroke")
         }
 
         get screenPos() {
@@ -2053,7 +2050,14 @@ terminal.addCommand("lunar-lander", async function(args) {
     }
     
 }, {
-    description: "play a classic game of moon-lander"
+    description: "play a classic game of moon-lander",
+    args: {
+        "?particles:n:1~1000": "number of particles to generate",
+    },
+    standardVals: {
+        particles: 10,
+    },
+    isGame: true,
 })
 
 let tetrisGame = null
@@ -2416,7 +2420,8 @@ terminal.addCommand("tetris", async function(args) {
     terminal.printLine(`Game over! Your score was ${game.score}`)
 
 }, {
-    description: "play a classic game of tetris"
+    description: "play a classic game of tetris",
+    isGame: true
 })
 
 terminal.addCommand("number-guess", async function(args) {
@@ -2441,138 +2446,13 @@ terminal.addCommand("number-guess", async function(args) {
     description: "guess a random number"
 })
 
-terminal.addCommand("stacker", async function(args) {
-    const GAME_SIZE = new Vector2d(26, 10)
-    const towerOffset = 3
-
-    let towerWidth = 12
-
-    const firstPrint = () => {
-        let outputs = []
-        for (let i = 0; i < GAME_SIZE.y; i++) {
-            let line = []
-            for (let j = 0; j < GAME_SIZE.x; j++) {
-                let output = terminal.print(" ")
-                line.push(output)
-            }
-            outputs.push(line)
-            terminal.addLineBreak()
-        }
-        return outputs
+terminal.addCommand("games", function(args) {
+    let allGames = terminal.functions.filter(c => c.isGame)
+    const maxNameLen = Math.max(...allGames.map(c => c.name.length))
+    for (let game of allGames) {
+        terminal.printCommand(stringPadBack(game.name, maxNameLen + 2), game.name, Color.PURPLE, false)
+        terminal.printLine(game.description)
     }
-
-    terminal.printLine("press SPACE to place block")
-    let outputs = firstPrint()
-
-    const drawTowerLine = (lineIndex, towerWidth) => {
-        let startX = Math.floor(GAME_SIZE.x / 2 - towerWidth / 2)
-        for (let i = 0; i < towerWidth; i++) {
-            outputs[lineIndex][startX + i].textContent = "#"
-        }
-    }
-
-    for (let i = towerOffset; i < outputs.length; i++) {
-        drawTowerLine(i, towerWidth)
-    }
-
-    const moveDown = () => {
-        for (let i = outputs.length - 1; i >= 0; i--) {
-            let prevLine = ""
-            if (i > 0) {
-                for (let j = 0; j < outputs[i - 1].length; j++) {
-                    prevLine += outputs[i - 1][j].textContent
-                }
-            } else {
-                prevLine = " ".repeat(outputs.length)
-            }
-            
-            for (let j = 0; j < outputs[i].length; j++) {
-                outputs[i][j].textContent = prevLine[j]
-            }
-        }
-    }
-
-    let scrollPos = 0
-    let scrollDirection = 1
-
-    const clearScrollPiece = () => {
-        let scrollLine = towerOffset - 1
-        for (let i = 0; i < outputs[scrollLine].length; i++) {
-            outputs[scrollLine][i].textContent = " "
-        }
-    }
-
-    const drawScrollPiece = () => {
-        let scrollLine = towerOffset - 1
-        clearScrollPiece()
-        for (let i = scrollPos; i < scrollPos + towerWidth; i++) {
-            if (i < 0 || i > outputs[scrollLine].length - 1)
-                continue
-            outputs[scrollLine][i].textContent = "#"
-        }
-    }
-
-    let score = 0
-
-    const dropPiece = () => {
-        let scrollLine = towerOffset - 1
-        towerWidth = 0
-        for (let i = 0; i < outputs[scrollLine].length; i++) {
-            if (outputs[scrollLine][i].textContent != "#")
-                continue
-            
-            if (outputs[scrollLine + 1][i].textContent == "#") {
-                towerWidth++
-            } else {
-                outputs[scrollLine][i].textContent = " "
-            }
-        }
-        if (towerWidth > 0) {
-            score++
-        } else {
-            gameRunning = false
-            return
-        }
-
-        moveDown()
-        update()
-    }
-
-    const update = () => {
-        if (scrollPos + towerWidth >= GAME_SIZE.x)
-            scrollDirection = -1
-        if (scrollPos <= 0)
-            scrollDirection = 1
-        
-        scrollPos += scrollDirection
-
-        drawScrollPiece()
-    }
-
-    let gameRunning = true
-
-    let keyListener = addEventListener("keydown", (e) => {
-        if (gameRunning == false)
-            return
-
-        if (e.key == "c" && e.ctrlKey) {
-            removeEventListener("keydown", keyListener)
-            gameRunning = false
-        }
-
-        if (e.key == " ") {
-            dropPiece()
-        }
-    })
-
-    terminal.scroll()
-    while (gameRunning) {
-        update()
-        await sleep(100 - Math.min(score, 15) * 5)
-    }
-
-    terminal.printLine(`Game over! Your score: ${score}`)
-
 }, {
-    description: "play a stacker game"
-}) 
+    description: "list all games"
+})
