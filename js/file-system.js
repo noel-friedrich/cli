@@ -25,6 +25,12 @@ class FileElement {
         this.path = undefined
     }
 
+    get pathArray() {
+        let pathArray = this.path.split("/")
+        pathArray.shift()
+        return pathArray
+    }
+
     get name() {
         // grabs last item of path seperated by "/"
         return this.path.split("").reverse().join("")
@@ -131,7 +137,7 @@ This site is built to work like a terminal:
 const about_txt_content = `<noel-friedrich>
 
     \\O_   This is me, Noel Friedrich.
- ,/\\/     I am a student still very much in learning.
+ ,/\\/     I am a student still learning.
    /      I also really love rainy weather.
    \\      And command line interfaces.
    \`      (because i like to feel cool)
@@ -157,6 +163,12 @@ without hitting a bomb.
 The game trains your memory skills and is also
 available to play on mobile devices!`
 
+const teleasy_txt = `Creating Telegram Bots Made Simple with Teleasy!
+It's a python library that makes it easy to create
+Telegram bots. It enables asynchronous handling of
+updates and provides a simple interface to create
+commands and queries.`
+
 const anticookiebox_txt = `This browser extension will delete an 'accept cookie'
 section of a page, by simply removing it from your screen
 This plugin behaves similar to an ad blocker, but for 'Accept Cookies' Boxes. The plugin will
@@ -177,6 +189,10 @@ a virtual city (coville) and a virtual virus (covid).
 It's also my submission to the german 'Jugend Forscht' competetion.
 
 (the website is in german)`
+
+const escape_txt = `Escape is my digital Escape Room platform.
+The software is made for german groups of 2-12 people and
+comes with a lot of different rooms to play.`
 
 const contact_txt = `E-Mail: noel.friedrich@outlook.de`
 
@@ -226,15 +242,6 @@ while (passwords_json.match(/FAKE_PASSWORD/)) {
     }())
 }
 
-const sitemapWebsites = [
-    "anticookiebox", "cardoid", "chess", "chess/online", "cloth",
-    "compli", "coville", "decide", "draw", "gravity",
-    "image-crop", "julius-coords", "lettre", "names", "particle",
-    "path-finder", "perilious-path", "physics", "plot", "presi",
-    "quiz", "random", "raycasting", "rps-ai", "sport", "struktogramm",
-    "todo", "trapped-knight", "tv", "unterschrift", "wave", "cli", "bezier"
-]
-
 const MELODIES_FOLDER = new FileElement(FileType.FOLDER, {}, {"<": "cd ..", "melody": "melody"})
 
 const melodies_readme_txt = `Welcome to the Melodies Folder!
@@ -266,14 +273,20 @@ let FILE_SYSTEM = new FileElement(FileType.FOLDER, {
             "coville-github.exe": new FileElement(FileType.PROGRAM, "https://github.com/noel-friedrich/coville"),
             "coville.exe": new FileElement(FileType.PROGRAM, "https://noel-friedrich.de/coville")
         }, {"<": "cd ..", "open": "run coville.exe", "github": "run coville-github.exe"}),
-        "sitemap": new FileElement(FileType.FOLDER, Object.fromEntries(
-            sitemapWebsites.map(website => [website, new FileElement(FileType.PROGRAM   , `https://noel-friedrich.de/${website}`)])
-        ), {"<": "cd .."})
+        "teleasy": new FileElement(FileType.FOLDER, {
+            "about.txt": new FileElement(FileType.READABLE, teleasy_txt),
+            "teleasy-github.exe": new FileElement(FileType.PROGRAM, "https://github.com/noel-friedrich/teleasy")
+        }, {"<": "cd ..", "github": "run teleasy-github.exe"}),
+        "escape": new FileElement(FileType.FOLDER, {
+            "about.txt": new FileElement(FileType.READABLE, escape_txt),
+            "escape.exe": new FileElement(FileType.PROGRAM, "https://noel-friedrich.de/escape")
+        }, {"<": "cd ..", "open": "run escape.exe"}),
     }, {
         "<": "cd ..",
         "ppath": ["cd perilious-path", "cat about.txt"],
         "coville": ["cd coville", "cat about.txt"],
-        "acb": ["cd anticookiebox", "cat about.txt"]
+        "acb": ["cd anticookiebox", "cat about.txt"],
+        "teleasy": ["cd teleasy", "cat about.txt"]
     }),
     "noel": new FileElement(FileType.FOLDER, {
         "secret": new FileElement(FileType.FOLDER, {
