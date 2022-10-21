@@ -54,12 +54,16 @@ let COMMAND_RUNNING = false
 
 class TerminalFunction {
 
-    constructor(terminalRef, name, description, func, helpVisible=false) {
+    constructor(terminalRef, name, description, func, helpVisible=false, args=[], argDescriptions, isGame, standardVals) {
         this.terminal = terminalRef
         this.name = name
         this.description = description
         this.func = func
         this.helpVisible = helpVisible
+        this.args = args
+        this.argDescriptions = argDescriptions ?? []
+        this.isGame = isGame ?? false
+        this.standardVals = standardVals ?? {}
     }
 
     async _rawRun(...params) {
@@ -187,14 +191,24 @@ function parseArgs(argStr, ignoreNamed=true) {
     return args
 }
 
-function getArgs(funcInfo, args, standardVals) {
+function getArgs(funcInfo, args, standardVals, argDescriptions) {
+    argDescriptions = argDescriptions ?? []
     let ignoreNamed = standardVals === false
-    let parsedArgs = parseArgs(funcInfo.rawArgs, !ignoreNamed)
-    let namedArgs = extractNamedArgs(funcInfo.rawArgs)
+    let rawArgs = (funcInfo != undefined) ? (funcInfo.rawArgs ?? "") : ""
+    let parsedArgs = parseArgs(rawArgs, !ignoreNamed)
+    let namedArgs = extractNamedArgs(rawArgs)
     let outputArgs = {}
     let parsedExpected = []
     let parsedExpectedOptions = []
     standardVals = standardVals || {}
+
+    if (args.length == 0) {
+        let numArgs = parsedArgs.length + Object.keys(namedArgs).length
+        if (numArgs > 0) {
+            throw new Error(`Didn't expect any arguments, got ${numArgs}`)
+        }
+    }
+
     let argCount = 0
     for (let i = 0; i < args.length; i++) {
         let expectedArg = args[i]
@@ -242,6 +256,37 @@ function getArgs(funcInfo, args, standardVals) {
             terminal.printf`${{[Color.COLOR_1]: str}} `
         }
         terminal.printLine()
+        const maxArgNameLength = Math.max(...parsedExpected.map(a => a.length)) + 2
+        for (let i = 0; i < parsedExpected.length; i++) {
+            let argName = parsedExpected[i]
+            if (parsedExpectedOptions[i].optional)
+                argName = (argName.length == 1) ? `-${argName}` : `--${argName}`
+            let description = argDescriptions[i] ?? ""
+            let autoDescription = ""
+            if (parsedExpectedOptions[i].numeric) {
+                autoDescription = "] " + autoDescription
+                if (parsedExpectedOptions[i].min != null) {
+                    autoDescription = `: ${parsedExpectedOptions[i].min} to ${parsedExpectedOptions[i].max}` + autoDescription
+                }
+                autoDescription = "[numeric" + autoDescription
+            }
+            if (standardVals[parsedExpected[i]]) {
+                autoDescription = `[default: ${standardVals[parsedExpected[i]]}] ` + autoDescription
+            } else if (parsedExpectedOptions[i].optional) {
+                autoDescription = "[optional] " + autoDescription
+            }
+            let combinedDescription = autoDescription + description
+            if (combinedDescription.length > 50) {
+                terminal.print(" > ")
+                terminal.print(stringPadBack(argName, maxArgNameLength) + " ", Color.COLOR_1)
+                terminal.printLine(autoDescription)
+                terminal.printLine(" ".repeat(maxArgNameLength + 4) + description)
+            } else if (combinedDescription.length > 0) {
+                terminal.print(" > ")
+                terminal.print(stringPadBack(argName, maxArgNameLength) + " ", Color.COLOR_1)
+                terminal.printLine(combinedDescription)
+            }
+        }
         throw new IntendedError()
     }
 
@@ -259,8 +304,10 @@ function getArgs(funcInfo, args, standardVals) {
         try {
             error()
         } catch {}
-        terminal.print("<" + argName + "> ", Color.COLOR_1)
-        terminal.print("must be a number")
+        terminal.printf`${{[Color.RED]: "Error"}}`
+        terminal.print(": ")
+        terminal.print(argName, Color.COLOR_1)
+        terminal.print(" must be a number")
         if (argOpts.min != null) {
             terminal.print(` between ${argOpts.min} and ${argOpts.max}`)
         }
@@ -348,7 +395,7 @@ function getArgs(funcInfo, args, standardVals) {
     return outputArgs
 }
 
-const namedArgRegex = /^(?:\-{2}[a-zA-Z][a-zA-Z0-9\-\_]*)|(?:\-{1}[a-zA-Z]+)$/
+const namedArgRegex = /^(?:(?:\-{2}[a-zA-Z][a-zA-Z0-9\-\_]*)|(?:\-{1}[a-zA-Z]+))$/
 
 function extractNamedArgs(argStr) {
     let parsedArgs = parseArgs(argStr, false)
@@ -470,6 +517,12 @@ function strRepeat(str, num) {
     return out
 }
 
+function addAlias(alias, command) {
+    terminal.addFunction(alias, async function(rawArgs) {
+        await terminal.inputLine(command + " " + rawArgs, false, false)
+    }, `alias for '${command}'`)
+}
+
 class Terminal {
 
     parentNode = document.getElementById("terminal")
@@ -580,7 +633,7 @@ class Terminal {
         this.parentNode.addEventListener("click", function() {
 
             function getSelectedText() {
-                var text = "";
+                let text = "";
                 if (typeof window.getSelection != "undefined") {
                     text = window.getSelection().toString();
                 } else if (typeof document.selection != "undefined" && document.selection.type == "Text") {
@@ -592,13 +645,14 @@ class Terminal {
             if (this.currInput != null && getSelectedText() == "") {
                 this.currInput.focus()
             }
+            
         }.bind(this))
     
         this.commandNotFoundFunc = this.addFunction("cmdnotfound", function(inpLine) {
             this.printLine(`${inpLine}: command not found`)
         }.bind(this))
 
-        this.addFunction("help", function() {
+        this.addCommand("help", function() {
             this.printf`${{[Color.COLOR_1]: "Welcome to the Help Menu!"}}\n`
             this.printLine("Here are some commands to try out:\n")
             let longestCommandLength = this.functions.filter(f => f.helpVisible)
@@ -609,19 +663,25 @@ class Terminal {
                 this.printLine(`${spaces}${terminalFunc.description}`)
             }
             this.printLine("\n(there are also A LOT of secret ones)")
-        }.bind(this), "show this help menu")
+        }.bind(this), {
+            description: "shows this help menu",
+        })
 
         this.load()
         this.updatePath()
         this.updateFileSystem()
     }
 
-    animatePrint(line) {
+    animatePrint(line, interval=30) {
         return new Promise(async function(resolve) {
             COMMAND_RUNNING = true
             for (let char of line) {
                 this.print(char)
-                await sleep(50)
+                if (interval > 0 && interval < 1) {
+                    let chance = 1 / interval
+                    if (Math.random() * chance < 1)
+                        await sleep(0)
+                } else await sleep(interval)
             }
             COMMAND_RUNNING = false
             this.addLineBreak()
@@ -665,31 +725,45 @@ class Terminal {
         let helpVisible = funcInfo.helpVisible ?? false
         let funcDescription = funcInfo.description ?? undefined
         let funcArgs = funcInfo.args ?? []
+        let rawArgMode = funcInfo.rawArgMode ?? false
         let standardVals = funcInfo.standardVals ?? {}
+        let funcArgDescriptions = funcInfo.argDescriptions ?? []
+        let isGame = funcInfo.isGame ?? false
+
+        if (!Array.isArray(funcArgs)) {
+            // assume it's an object
+            funcArgDescriptions = Object.values(funcArgs)
+            funcArgs = Object.keys(funcArgs)
+        }
+
         let terminalFunc = new TerminalFunction(
-            this, funcName, funcDescription, async (_, funcInfo) => {
-                let args = getArgs(funcInfo, funcArgs, standardVals)
+            this, funcName, funcDescription, async (rawArgs, funcInfo) => {
+                let args = rawArgMode ? rawArgs : getArgs(funcInfo, funcArgs, standardVals, funcArgDescriptions)
                 let innerTerminalFunc = new TerminalFunction(
                     this, funcName, funcDescription, func, helpVisible
                 )
                 await innerTerminalFunc._rawRun(args)
-            }, helpVisible
+            }, helpVisible, funcArgs, funcArgDescriptions, isGame, standardVals
         )
         this.functions.push(terminalFunc)
         return terminalFunc
     }
 
-    async prompt(msg=null) {
+    async prompt(msg=null, password=false) {
         return new Promise(async function(resolve) {
             if (msg != null) {
                 this.print(msg)
             }
             let inputElement = this.makeInput()
+            inputElement.type = password ? "password" : "text"
             inputElement.onkeydown = function(event) {
                 if (event.key == "Enter") {
                     inputElement.remove()
                     let value = inputElement.value
-                    this.printLine(value)
+                    if (password)
+                        this.printLine("•".repeat(value.length))
+                    else
+                        this.printLine(value)
                     resolve(value.trim())
                 } else if (event.ctrlKey && event.key == "c") {
                     if (inputElement.value)
@@ -703,6 +777,7 @@ class Terminal {
     }
 
     async promptNum(msg=null, options={}) {
+        let lineEnd = options.lineEnd ?? true
         return new Promise(async function(resolve) {
             while (true) {
                 let inp = await this.prompt(msg)
@@ -777,7 +852,7 @@ class Terminal {
 
     printLink(msg, url, color=Color.WHITE, endLine=true) {
         let anchorElement = document.createElement("a")
-        anchorElement.href = url
+        anchorElement.href = url ?? msg
         anchorElement.textContent = msg
         if (color != Color.WHITE)
             anchorElement.style.color = color
@@ -858,9 +933,10 @@ class Terminal {
     }
 
     get approxWidthInChars() {
-        let pre = Array.from(document.querySelectorAll("pre")).filter(e => e.textContent == "$")[0]
+        const referenceText = "Hello World!"
+        let pre = Array.from(document.querySelectorAll("pre")).filter(e => e.textContent == referenceText)[0]
         if (!pre) return null
-        return ~~(this.parentNode.clientWidth / pre.offsetWidth * 0.9)
+        return ~~(this.parentNode.clientWidth / pre.offsetWidth * referenceText.length * 0.9)
     }
 
     resetTextDiv() {
@@ -887,7 +963,7 @@ class Terminal {
         this.printf`${{[Color.COLOR_2]: "$"}} `
         if (!isMobile) {
             this.awaitInput()
-        }
+        } else this.scroll()
         COMMAND_RUNNING = false
         terminal.updateFileSystem()
         terminal.save()
@@ -898,8 +974,8 @@ class Terminal {
         this.parentNode.appendChild(inputElement)
         let rect = inputElement.getBoundingClientRect()
         inputElement.style.width = `${this.parentNode.clientWidth - rect.left - rect.width}px`
-        setTimeout(() => inputElement.focus(), 300)
-        inputElement.scrollIntoView({behavior: "smooth"})
+        setTimeout(() => inputElement.focus({preventScroll: true}), 0)
+        this.scroll()
         this.currInput = inputElement
         return inputElement
     }
@@ -933,6 +1009,8 @@ class Terminal {
                 let possibleMatches = terminal.functions.map(f => f.name)
                     .concat(allRelativeFiles)
                     .filter(f => f.startsWith(tabMatchStr))
+
+                possibleMatches.sort((a, b) => a.length - b.length)
                 
                 if (possibleMatches.length == 0) return
 
@@ -986,8 +1064,8 @@ class Terminal {
         return this.prevCommands[this.prevCommands.length - 1]
     }
 
-    async inputLine(inputStr, callFinishFunction=true) {
-        if (inputStr.length > 0 && inputStr != this.lastCommand) 
+    async inputLine(inputStr, callFinishFunction=true, addToHistory=true) {
+        if (inputStr.length > 0 && inputStr != this.lastCommand && addToHistory)
             this.prevCommands.push(inputStr)
         
         let splitStr = inputStr.split(/\s/)
@@ -1160,9 +1238,9 @@ function getFile(fileName) {
 
 const terminal = new Terminal()
 
-let helloWorld = terminal.addFunction("helloworld", function() {
+let helloWorld = terminal.addCommand("helloworld", async function() {
     terminal.printLine(welcome_txt_content)
-})
+}, {description: "display the hello-world text"})
 
 async function main() {
     if (isMobile) {
