@@ -80,6 +80,7 @@ The following list can also be viewed using the `whatis *` command
 | `cat`            | print file content                                  |
 | `cd`             | change current directory                            |
 | `ceasar`         | encrypt a text using the ceasar cipher              |
+| `cheese`         | take a foto with your webcam                        |
 | `chess`          | play a game of chess against the computer           |
 | `clear`          | clear the terminal                                  |
 | `clock`          | display the current time                            |
@@ -88,6 +89,7 @@ The following list can also be viewed using the `whatis *` command
 | `color-test`     | test the color capabilities of the terminal         |
 | `compliment`     | get info about yourself                             |
 | `convert`        | convert a file to another format                    |
+| `copy`           | copy the file content to the clipboard              |
 | `cowsay`         | let the cow say something                           |
 | `cowthink`       | let the cow think something                         |
 | `cp`             | copy a file                                         |
@@ -112,6 +114,7 @@ The following list can also be viewed using the `whatis *` command
 | `get`            | get a value from the server                         |
 | `github`         | alias for 'run home/github.exe'                     |
 | `greed`          | play a game of greed                                |
+| `greed:big`      | alias for 'greed -b'                                |
 | `grep`           | search for a pattern in a file                      |
 | `groups`         | display the groups of a user                        |
 | `head`           | display the first lines of a file                   |
@@ -151,7 +154,7 @@ The following list can also be viewed using the `whatis *` command
 | `play`           | play a .melody file                                 |
 | `plot`           | plot a mathematical function within bounds          |
 | `pong`           | play a game of pong against the computer            |
-| `pv`             | print text with a cool animation                    |
+| `pv`             | print a message with a typing animation             |
 | `pwd`            | display the current working directory               |
 | `quiz`           | play the quiz game                                  |
 | `rate`           | rate a programming language                         |
@@ -172,7 +175,8 @@ The following list can also be viewed using the `whatis *` command
 | `sleep`          | sleep for a number of seconds                       |
 | `snake`          | play a game of snake                                |
 | `solve`          | solve a mathematical equation for x                 |
-| `sort`           | undefined                                           |
+| `sort`           | display a file in sorted order                      |
+| `sorting`        | display a sorting algorithm                         |
 | `stacker`        | play a stacker game                                 |
 | `style`          | change the style of the terminal                    |
 | `sudo`           | try to use sudo                                     |
