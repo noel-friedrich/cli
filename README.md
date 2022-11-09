@@ -26,7 +26,7 @@ The page is build to work like a Unix-Terminal, including:
   3. write js-code inside the editor, e.g. `console.log("Hello World!")`
   4. exit and save by hitting `Strg+S`
   5. execute your new script using `./main.js` or `run main.js`
-* plot your favorite equation using `plot e^x` (and hear them!)
+* plot your favorite equation using `plot tan(2x)` (and hear them!)
 * solve your favorite equation using `solve x*x=10`
 * feel like a hacker using `cmatrix`
 * let the cow say something using `cowsay`
