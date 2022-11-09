@@ -49,14 +49,13 @@ The page is build to work like a Unix-Terminal, including:
 * misspell `ls` as `sl`
 * calculate the derivative of `sin(x)` using `derivative sin(x)`
 * play some games against an artificial opponent player
-  * play `chess`
-  * play `4inarow` (connect 4)
-  * play `tictactoe`
-  * play `lunar-lander`
-  * play `tetris`
-  * play `snake`
-  * play `2048`
-  * play `stacker`
+  * play [`lunar-lander`](https://noel-friedrich.de/cli/?cmd=lunar-lander)
+  * play [`chess`](https://noel-friedrich.de/cli/?cmd=chess)
+  * play [`4inarow`](https://noel-friedrich.de/cli/?cmd=4inarow)
+  * play [`snake`](https://noel-friedrich.de/cli/?cmd=snake)
+  * play [`2048`](https://noel-friedrich.de/cli/?cmd=2048)
+  * play [`stacker`](https://noel-friedrich.de/cli/?cmd=stacker)
+  * view highscores using `highscores <game-name>`
 
 ## Commands
 
