@@ -64,141 +64,142 @@ The following list can also be viewed using the `whatis *` command
 
 | Command      | Description                                                     |
 | ------------ | --------------------------------------------------------------- |
-| `!`              | run a command from history                          |
-| `./`             | alias for 'run'                                     |
-| `2048`           | play a game of 2048                                 |
-| `4inarow`        | play a game of Connect Four against the computer    |
-| `alias`          | create a new alias for a given function             |
-| `background`     | change the background color of the terminal         |
-| `base64`         | encode/decode a message using base64                |
-| `bc`             | compute the value of a mathematical expression      |
-| `bf`             | alias for 'brainfuck'                               |
-| `bmi`            | calculate a body-mass-index                         |
-| `brainfuck`      | parse given brainfuck code                          |
-| `cal`            | print a calendar                                    |
-| `cat`            | print file content                                  |
-| `cd`             | change current directory                            |
-| `ceasar`         | encrypt a text using the ceasar cipher              |
-| `cheese`         | take a foto with your webcam                        |
-| `chess`          | play a game of chess against the computer           |
-| `clear`          | clear the terminal                                  |
-| `clock`          | display the current time                            |
-| `cmatrix`        | feel cool, be hacker                                |
-| `cmdnotfound`    | undefined                                           |
-| `color-test`     | test the color capabilities of the terminal         |
-| `compliment`     | get info about yourself                             |
-| `convert`        | convert a file to another format                    |
-| `copy`           | copy the file content to the clipboard              |
-| `cowsay`         | let the cow say something                           |
-| `cowthink`       | let the cow think something                         |
-| `cp`             | copy a file                                         |
-| `curl`           | download a file from the internet                   |
-| `cw`             | get the calendar week for a given date              |
-| `derivative`     | take the derivative of a term                       |
-| `dir`            | list the files in the current directory             |
-| `donut`          | do the spinny donut.c                               |
-| `download`       | download a file                                     |
-| `du`             | display disk usage of current directory             |
-| `echo`           | print a line of text                                |
-| `edit`           | edit a file of the current directory                |
-| `eval`           | evaluate javascript code                            |
-| `exit`           | exit the terminal                                   |
-| `exportmelody`   | export a .melody file to a .mp3 one                 |
-| `f`              | calculate friendship score with a friend            |
-| `factor`         | calculate the prime factors of given numbers        |
-| `fizzbuzz`       | do the fizzbuzz                                     |
-| `foreground`     | change the foreground color of the terminal         |
-| `frequency`      | play a given frequency for a given amount of time   |
-| `games`          | list all games to play                              |
-| `get`            | get a value from the server                         |
-| `github`         | alias for 'run home/github.exe'                     |
-| `greed`          | play a game of greed                                |
-| `greed:big`      | alias for 'greed -b'                                |
-| `grep`           | search for a pattern in a file                      |
-| `groups`         | display the groups of a user                        |
-| `head`           | display the first lines of a file                   |
-| `helloworld`     | display the hello-world text                        |
-| `help`           | shows this help menu                                |
-| `hi`             | say hello to the terminal                           |
-| `hidebtns`       | hide the terminal buttons                           |
-| `highscores`     | Show global highscores for a game                   |
-| `history`        | undefined                                           |
-| `href`           | open a link in another tab                          |
-| `hugehugeturtlo` | spawn huge huge turtlo                              |
-| `hugeturtlo`     | spawn huge turtlo                                   |
-| `img2ascii`      | image to ascii converter                            |
-| `joke`           | tell a joke                                         |
-| `kill`           | kill a process                                      |
-| `letters`        | draw the input in cool letters                      |
-| `logistic-map`   | draw the logistic map                               |
-| `ls`             | list all files of current directory                 |
-| `LS`             | alias for 'sl'                                      |
-| `lscmds`         | list all existing commands                          |
-| `lscpu`          | get some helpful info about your cpu                |
-| `lsusb`          | list all usb devices                                |
-| `lunar-lander`   | play a classic game of moon-lander                  |
-| `man`            | show the manual page for a command                  |
-| `mandelbrot`     | draw the mandelbrot set                             |
-| `melody`         | open the melody-maker                               |
-| `mill2player`    | play a game of mill with a friend locally           |
-| `mkdir`          | create a new directory                              |
-| `morse`          | translate latin to morse or morse to latin          |
-| `mv`             | move a file                                         |
-| `name`           | set a default name for the highscore system to use  |
-| `nano`           | open nano editor                                    |
-| `number-guess`   | guess a random number                               |
-| `oneko`          | just use turtlo                                     |
-| `pascal`         | print a pascal triangle                             |
-| `password`       | generate a new random password                      |
-| `play`           | play a .melody file                                 |
-| `plot`           | plot a mathematical function within bounds          |
-| `pong`           | play a game of pong against the computer            |
-| `pv`             | print a message with a typing animation             |
-| `pwd`            | display the current working directory               |
-| `quiz`           | play the quiz game                                  |
-| `rate`           | rate a programming language                         |
-| `reboot`         | reboot the website                                  |
-| `reload`         | force reload all resources                          |
-| `reset`          | reset everything                                    |
-| `reverse`        | reverse a message                                   |
-| `rm`             | remove a file                                       |
-| `rmdir`          | remove a directory                                  |
-| `rndm`           | generate a random number based on the current time  |
-| `run`            | run a .exe file                                     |
-| `runfunc`        | alias for '!'                                       |
-| `search`         | search something via google.com                     |
-| `set`            | set a value on the server                           |
-| `sha256`         | calculate the SHA-256 hash of a message             |
-| `shutdown`       | shutdown the website... or not?                     |
-| `sl`             | steam locomotive                                    |
-| `sleep`          | sleep for a number of seconds                       |
-| `snake`          | play a game of snake                                |
-| `solve`          | solve a mathematical equation for x                 |
-| `sort`           | display a file in sorted order                      |
-| `sorting`        | display a sorting algorithm                         |
-| `stacker`        | play a stacker game                                 |
-| `style`          | change the style of the terminal                    |
-| `sudo`           | try to use sudo                                     |
-| `tac`            | tnetnoc elif daer                                   |
-| `tetris`         | play a classic game of tetris                       |
-| `tictactoe`      | play a game of tic tac toe against the computer.    |
-| `timer`          | start a timer                                       |
-| `todo`           | manage todo lists                                   |
-| `touch`          | create a file in the current directory              |
-| `tree`           | alias for 'ls -r'                                   |
-| `turtlo`         | spawn turtlo                                        |
-| `type-test`      | test your typing speed                              |
-| `uname`          | display the name of the operating system            |
-| `unhidebtns`     | unhide the terminal buttons                         |
-| `upload`         | upload a file                                       |
-| `vigenere`       | encrypt/decrypt a message using the vigenere cipher |
-| `w`              | show the active users and their time elapsed        |
-| `wc`             | display word and line count of file                 |
-| `whatday`        | get the weekday of a date                           |
-| `whatis`         | display a short description of a command            |
-| `whoami`         | get client info                                     |
-| `yes`            | repeat a message until you press Ctrl+C             |
-| `zip`            | zip a file                                          |
+ | [`!`](https://noel-friedrich.de/cli/?cmd=!) | run a command from history |
+ | [`./`](https://noel-friedrich.de/cli/?cmd=./) | alias for 'run' |
+ | [`2048`](https://noel-friedrich.de/cli/?cmd=2048) | play a game of 2048 |
+ | [`4inarow`](https://noel-friedrich.de/cli/?cmd=4inarow) | play a game of Connect Four against the computer |
+ | [`LS`](https://noel-friedrich.de/cli/?cmd=LS) | alias for 'sl' |
+ | [`alias`](https://noel-friedrich.de/cli/?cmd=alias) | create a new alias for a given function |
+ | [`background`](https://noel-friedrich.de/cli/?cmd=background) | change the background color of the terminal |
+ | [`base64`](https://noel-friedrich.de/cli/?cmd=base64) | encode/decode a message using base64 |
+ | [`bc`](https://noel-friedrich.de/cli/?cmd=bc) | start a bc (basic calculator) session |
+ | [`bf`](https://noel-friedrich.de/cli/?cmd=bf) | alias for 'brainfuck' |
+ | [`binomcdf`](https://noel-friedrich.de/cli/?cmd=binomcdf) | calculate the binomial cumulative distribution function |
+ | [`binompdf`](https://noel-friedrich.de/cli/?cmd=binompdf) | calculate binomial distribution value |
+ | [`brainfuck`](https://noel-friedrich.de/cli/?cmd=brainfuck) | parse given brainfuck code |
+ | [`cal`](https://noel-friedrich.de/cli/?cmd=cal) | print a calendar |
+ | [`cat`](https://noel-friedrich.de/cli/?cmd=cat) | print file content |
+ | [`cd`](https://noel-friedrich.de/cli/?cmd=cd) | change current directory |
+ | [`ceasar`](https://noel-friedrich.de/cli/?cmd=ceasar) | shift the letters of a text |
+ | [`cheese`](https://noel-friedrich.de/cli/?cmd=cheese) | take a foto with your webcam |
+ | [`chess`](https://noel-friedrich.de/cli/?cmd=chess) | play a game of chess against the computer |
+ | [`clear`](https://noel-friedrich.de/cli/?cmd=clear) | clear the terminal |
+ | [`clock`](https://noel-friedrich.de/cli/?cmd=clock) | display a clock |
+ | [`cmatrix`](https://noel-friedrich.de/cli/?cmd=cmatrix) | show the matrix |
+ | [`cmdnotfound`](https://noel-friedrich.de/cli/?cmd=cmdnotfound) | undefined |
+ | [`color-test`](https://noel-friedrich.de/cli/?cmd=color-test) | test the color capabilities of the terminal |
+ | [`compliment`](https://noel-friedrich.de/cli/?cmd=compliment) | get info about yourself |
+ | [`convert`](https://noel-friedrich.de/cli/?cmd=convert) | convert a file to another format |
+ | [`copy`](https://noel-friedrich.de/cli/?cmd=copy) | copy the file content to the clipboard |
+ | [`cowsay`](https://noel-friedrich.de/cli/?cmd=cowsay) | let the cow say something |
+ | [`cowthink`](https://noel-friedrich.de/cli/?cmd=cowthink) | let the cow think something |
+ | [`cp`](https://noel-friedrich.de/cli/?cmd=cp) | copy a file |
+ | [`curl`](https://noel-friedrich.de/cli/?cmd=curl) | download a file from the internet |
+ | [`cw`](https://noel-friedrich.de/cli/?cmd=cw) | get the calendar week of a date |
+ | [`derivative`](https://noel-friedrich.de/cli/?cmd=derivative) | take the derivative of a term |
+ | [`donut`](https://noel-friedrich.de/cli/?cmd=donut) | display a spinning donut |
+ | [`download`](https://noel-friedrich.de/cli/?cmd=download) | download a file |
+ | [`du`](https://noel-friedrich.de/cli/?cmd=du) | display disk usage of current directory |
+ | [`echo`](https://noel-friedrich.de/cli/?cmd=echo) | print a line of text |
+ | [`edit`](https://noel-friedrich.de/cli/?cmd=edit) | edit a file of the current directory |
+ | [`eval`](https://noel-friedrich.de/cli/?cmd=eval) | evaluate javascript code |
+ | [`exit`](https://noel-friedrich.de/cli/?cmd=exit) | exit the terminal |
+ | [`exportmelody`](https://noel-friedrich.de/cli/?cmd=exportmelody) | export a .melody file to a .mp3 one |
+ | [`f`](https://noel-friedrich.de/cli/?cmd=f) | calculate friendship score with a friend |
+ | [`factor`](https://noel-friedrich.de/cli/?cmd=factor) | print the prime factors of a number |
+ | [`fizzbuzz`](https://noel-friedrich.de/cli/?cmd=fizzbuzz) | print the fizzbuzz sequence |
+ | [`foreground`](https://noel-friedrich.de/cli/?cmd=foreground) | change the foreground color of the terminal |
+ | [`frequency`](https://noel-friedrich.de/cli/?cmd=frequency) | play a given frequency for a given amount of time |
+ | [`games`](https://noel-friedrich.de/cli/?cmd=games) | list all games to play |
+ | [`get`](https://noel-friedrich.de/cli/?cmd=get) | get a value from the server |
+ | [`github`](https://noel-friedrich.de/cli/?cmd=github) | alias for 'run home/github.exe' |
+ | [`greed`](https://noel-friedrich.de/cli/?cmd=greed) | play a game of greed |
+ | [`greed:big`](https://noel-friedrich.de/cli/?cmd=greed:big) | alias for 'greed -b' |
+ | [`grep`](https://noel-friedrich.de/cli/?cmd=grep) | search for a pattern in a file |
+ | [`head`](https://noel-friedrich.de/cli/?cmd=head) | display the first lines of a file |
+ | [`helloworld`](https://noel-friedrich.de/cli/?cmd=helloworld) | display the hello-world text |
+ | [`help`](https://noel-friedrich.de/cli/?cmd=help) | shows this help menu |
+ | [`hi`](https://noel-friedrich.de/cli/?cmd=hi) | say hello to the terminal |
+ | [`hidebtns`](https://noel-friedrich.de/cli/?cmd=hidebtns) | hides the buttons in the terminal |
+ | [`highscores`](https://noel-friedrich.de/cli/?cmd=highscores) | Show global highscores for a game |
+ | [`history`](https://noel-friedrich.de/cli/?cmd=history) | undefined |
+ | [`href`](https://noel-friedrich.de/cli/?cmd=href) | open a link in another tab |
+ | [`hugehugeturtlo`](https://noel-friedrich.de/cli/?cmd=hugehugeturtlo) | spawn huge huge turtlo |
+ | [`hugeturtlo`](https://noel-friedrich.de/cli/?cmd=hugeturtlo) | spawn huge turtlo |
+ | [`img2ascii`](https://noel-friedrich.de/cli/?cmd=img2ascii) | Convert an image to ASCII art |
+ | [`joke`](https://noel-friedrich.de/cli/?cmd=joke) | tell a joke |
+ | [`kaprekar`](https://noel-friedrich.de/cli/?cmd=kaprekar) | display the kaprekar steps of a number |
+ | [`kill`](https://noel-friedrich.de/cli/?cmd=kill) | kill a process |
+ | [`letters`](https://noel-friedrich.de/cli/?cmd=letters) | prints the given text in ascii art |
+ | [`logistic-map`](https://noel-friedrich.de/cli/?cmd=logistic-map) | draw the logistic map |
+ | [`ls`](https://noel-friedrich.de/cli/?cmd=ls) | list all files of current directory |
+ | [`lscmds`](https://noel-friedrich.de/cli/?cmd=lscmds) | list all available commands |
+ | [`lscpu`](https://noel-friedrich.de/cli/?cmd=lscpu) | get some helpful info about your cpu |
+ | [`lsusb`](https://noel-friedrich.de/cli/?cmd=lsusb) | list all usb devices |
+ | [`lunar-lander`](https://noel-friedrich.de/cli/?cmd=lunar-lander) | play a classic game of moon-lander |
+ | [`man`](https://noel-friedrich.de/cli/?cmd=man) | show the manual page for a command |
+ | [`mandelbrot`](https://noel-friedrich.de/cli/?cmd=mandelbrot) | draws the mandelbrot set |
+ | [`melody`](https://noel-friedrich.de/cli/?cmd=melody) | open the melody-maker |
+ | [`mill2player`](https://noel-friedrich.de/cli/?cmd=mill2player) | play a game of mill with a friend locally |
+ | [`mkdir`](https://noel-friedrich.de/cli/?cmd=mkdir) | create a new directory |
+ | [`morse`](https://noel-friedrich.de/cli/?cmd=morse) | translate latin to morse or morse to latin |
+ | [`mv`](https://noel-friedrich.de/cli/?cmd=mv) | move a file |
+ | [`name`](https://noel-friedrich.de/cli/?cmd=name) | set a default name for the highscore system to use |
+ | [`ncr`](https://noel-friedrich.de/cli/?cmd=ncr) | calculate binomial distribution value |
+ | [`number-guess`](https://noel-friedrich.de/cli/?cmd=number-guess) | guess a random number |
+ | [`oneko`](https://noel-friedrich.de/cli/?cmd=oneko) | just use turtlo |
+ | [`pascal`](https://noel-friedrich.de/cli/?cmd=pascal) | print a pascal triangle |
+ | [`password`](https://noel-friedrich.de/cli/?cmd=password) | Generate a random password |
+ | [`play`](https://noel-friedrich.de/cli/?cmd=play) | play a .melody file |
+ | [`plot`](https://noel-friedrich.de/cli/?cmd=plot) | plot a mathematical function within bounds |
+ | [`pong`](https://noel-friedrich.de/cli/?cmd=pong) | play a game of pong against the computer |
+ | [`pv`](https://noel-friedrich.de/cli/?cmd=pv) | print a message with a typing animation |
+ | [`pwd`](https://noel-friedrich.de/cli/?cmd=pwd) | print the current working directory |
+ | [`qr`](https://noel-friedrich.de/cli/?cmd=qr) | generate a qr code |
+ | [`quiz`](https://noel-friedrich.de/cli/?cmd=quiz) | play the quiz game |
+ | [`rate`](https://noel-friedrich.de/cli/?cmd=rate) | rate a programming language |
+ | [`reboot`](https://noel-friedrich.de/cli/?cmd=reboot) | reboot the website |
+ | [`reload`](https://noel-friedrich.de/cli/?cmd=reload) | force reload all resources |
+ | [`reset`](https://noel-friedrich.de/cli/?cmd=reset) | reset the terminal |
+ | [`reverse`](https://noel-friedrich.de/cli/?cmd=reverse) | reverse a message |
+ | [`rm`](https://noel-friedrich.de/cli/?cmd=rm) | remove a file |
+ | [`rmdir`](https://noel-friedrich.de/cli/?cmd=rmdir) | remove a directory |
+ | [`rndm`](https://noel-friedrich.de/cli/?cmd=rndm) | generate a random number based on the current time |
+ | [`run`](https://noel-friedrich.de/cli/?cmd=run) | run a .exe file |
+ | [`runfunc`](https://noel-friedrich.de/cli/?cmd=runfunc) | alias for '!' |
+ | [`search`](https://noel-friedrich.de/cli/?cmd=search) | search something via google.com |
+ | [`set`](https://noel-friedrich.de/cli/?cmd=set) | set a value on the server |
+ | [`sha256`](https://noel-friedrich.de/cli/?cmd=sha256) | calculate the SHA-256 hash of a message |
+ | [`shutdown`](https://noel-friedrich.de/cli/?cmd=shutdown) | shutdown the terminal |
+ | [`sl`](https://noel-friedrich.de/cli/?cmd=sl) | steam locomotive |
+ | [`sleep`](https://noel-friedrich.de/cli/?cmd=sleep) | sleep for a number of seconds |
+ | [`snake`](https://noel-friedrich.de/cli/?cmd=snake) | play a game of snake |
+ | [`solve`](https://noel-friedrich.de/cli/?cmd=solve) | solve a mathematical equation for x |
+ | [`sort`](https://noel-friedrich.de/cli/?cmd=sort) | display a file in sorted order |
+ | [`sorting`](https://noel-friedrich.de/cli/?cmd=sorting) | display a sorting algorithm |
+ | [`stacker`](https://noel-friedrich.de/cli/?cmd=stacker) | play a stacker game |
+ | [`style`](https://noel-friedrich.de/cli/?cmd=style) | change the style of the terminal |
+ | [`sudo`](https://noel-friedrich.de/cli/?cmd=sudo) | try to use sudo |
+ | [`tac`](https://noel-friedrich.de/cli/?cmd=tac) | tnetnoc elif daer |
+ | [`tetris`](https://noel-friedrich.de/cli/?cmd=tetris) | play a classic game of tetris |
+ | [`tictactoe`](https://noel-friedrich.de/cli/?cmd=tictactoe) | play a game of tic tac toe against the computer. |
+ | [`timer`](https://noel-friedrich.de/cli/?cmd=timer) | set a timer |
+ | [`todo`](https://noel-friedrich.de/cli/?cmd=todo) | manage a todo list |
+ | [`touch`](https://noel-friedrich.de/cli/?cmd=touch) | create a file in the current directory |
+ | [`tree`](https://noel-friedrich.de/cli/?cmd=tree) | alias for 'ls -r' |
+ | [`turtlo`](https://noel-friedrich.de/cli/?cmd=turtlo) | spawn turtlo |
+ | [`type-test`](https://noel-friedrich.de/cli/?cmd=type-test) | test your typing speed |
+ | [`uname`](https://noel-friedrich.de/cli/?cmd=uname) | print the operating system name |
+ | [`unhidebtns`](https://noel-friedrich.de/cli/?cmd=unhidebtns) | unhides the buttons in the terminal |
+ | [`upload`](https://noel-friedrich.de/cli/?cmd=upload) | upload a file from your computer |
+ | [`vigenere`](https://noel-friedrich.de/cli/?cmd=vigenere) | encrypt/decrypt a message using the vigenere cipher |
+ | [`w`](https://noel-friedrich.de/cli/?cmd=w) | print the current time elapsed |
+ | [`wc`](https://noel-friedrich.de/cli/?cmd=wc) | display word and line count of file |
+ | [`whatday`](https://noel-friedrich.de/cli/?cmd=whatday) | get the weekday of a date |
+ | [`whatis`](https://noel-friedrich.de/cli/?cmd=whatis) | display a short description of a command |
+ | [`whoami`](https://noel-friedrich.de/cli/?cmd=whoami) | get client info |
+ | [`yes`](https://noel-friedrich.de/cli/?cmd=yes) | print a message repeatedly |
+ | [`zip`](https://noel-friedrich.de/cli/?cmd=zip) | zip a file |
 
 ## Status
 Project is _IN PROGRESS_
