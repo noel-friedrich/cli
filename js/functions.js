@@ -4,10 +4,10 @@ terminal.addCommand("ls", function(args) {
     let recursive = args.r
 
     const CHARS = {
-        LINE: "│",
-        T: "├",
-        L: "└",
-        DASH: "─",
+        LINE: "â”‚",
+        T: "â”œ",
+        L: "â””",
+        DASH: "â”€",
     }
 
     function listFolder(folder, indentation="") {
@@ -79,7 +79,9 @@ terminal.addCommand("cd", function(args) {
     terminal.updatePath()
 }, {
     helpVisible: true,
-    args: ["directory"],
+    args: {
+        "directory": "the directory relative to your current path"
+    },
     description: "change current directory",
 })
 
@@ -112,7 +114,9 @@ terminal.addCommand("cd", function(args) {
         terminal.addCommand(name, func, {
             helpVisible,
             description: description,
-            args: ["file"],
+            args: {
+                "file": "file to display"
+            },
         })
     }
 
@@ -120,13 +124,11 @@ terminal.addCommand("cd", function(args) {
         if (file.type == FileType.PROGRAM) {
             terminal.printLink(content, content)
         } else {
-            terminal.printLine(content)
+            terminal.printLine(content.trimEnd())
         }
     })
 
     addCatFunc("cat", normalCatFunc, "print file content", true)
-    addAlias("<", "cat")
-    addAlias("open", "cat")
 
     addCatFunc("tac", makeCatFunc(function(content) {
         let lines = content.split("\n")
@@ -136,7 +138,7 @@ terminal.addCommand("cd", function(args) {
         }
     }), "tnetnoc elif daer")
 
-    terminal.addCommand("sort", makeCatFunc(function(content) {
+    addCatFunc("sort", makeCatFunc(function(content) {
         let lines = content.split("\n")
         lines.sort()
         for (var i = 0; i < lines.length; i++) {
@@ -150,6 +152,7 @@ terminal.addCommand("cd", function(args) {
             if (fileName.endsWith(".js")) {
                 let jsEnv = new JsEnvironment()
                 jsEnv.setValue("console", {log: m => terminal.printLine(String(m))})
+                jsEnv.setValue("terminal", terminal)
                 let [_, error] = jsEnv.eval(content)
                 if (error)
                     throw new Error(String(error))
@@ -195,7 +198,9 @@ terminal.addCommand("wc", function(args) {
     }
 }, {
     description: "display word and line count of file",
-    args: ["file"]
+    args: {
+        "file": "file to open"
+    }
 })
 
 terminal.addCommand("compliment", function() {
@@ -278,8 +283,7 @@ terminal.addCommand("whoami", async function() {
         terminal.printLine(infoContent)
     }
 }, {
-    description: "get client info",
-    args: []
+    description: "get client info"
 })
 
 let evalJsEnv = newMathEnv()
@@ -397,8 +401,8 @@ terminal.addCommand("edit", async function(args) {
     }
 
     return new Promise(resolve => {
-        let windowWidth = 64
-        let windowHeight = 16
+        let windowWidth = args.w
+        let windowHeight = args.h
         let lineSeperator = `+--${stringMul("-", windowWidth)}--+`
         let preElement = terminal.printLine(lineSeperator)
         let charWidth = preElement.getBoundingClientRect().width / lineSeperator.length
@@ -412,7 +416,7 @@ terminal.addCommand("edit", async function(args) {
             inputs.push(createInput(`${charWidth * windowWidth}px`))
             terminal.printLine(" |")
         }
-        terminal.printLine("+------------------- strg-s to save, esc to exit --------------------+")
+        terminal.printLine("+" + stringPadMiddle(" strg-s to save, esc to exit ", windowWidth + 4, "-") + "+")
 
         function save() {
             let content = lines.reduce((a, l) => a + l + "\n", "")
@@ -445,6 +449,9 @@ terminal.addCommand("edit", async function(args) {
                         loadLines(currScrollIndex)
                         event.preventDefault()
                     }
+                } else if (event.key == "Tab") {
+                    input.value += "    "
+                    event.preventDefault()
                 } else if (event.key == "ArrowUp") {
                     if (inputs[i - 1]) {
                         inputs[i - 1].focus()
@@ -456,9 +463,13 @@ terminal.addCommand("edit", async function(args) {
                     event.preventDefault()
                 } else if (event.key == "Enter") {
                     lines.splice(lineIndex + 1, 0, "")
+                    let leadingSpaces = input.value.match(/^ */)[0].length
                     lines[lineIndex] = input.value
                     if (inputs[i + 1]) {
                         inputs[i + 1].focus()
+                        if (inputs[i + 1].value.length == 0) {
+                            lines[lineIndex + 1] = stringMul(" ", leadingSpaces)
+                        }
                         inputs[i + 1].selectionStart = inputs[i + 1].selectionEnd = 10000
                     } else {
                         currScrollIndex++
@@ -488,11 +499,19 @@ terminal.addCommand("edit", async function(args) {
     })
 }, {
     description: "edit a file of the current directory",
-    args: ["file"]
+    args: {
+        "file": "the file to open",
+        "?w:n:10~100": "the width of the window",
+        "?h:n:10~100": "the height of the window"
+    },
+    standardVals: {
+        "w": 64,
+        "h": 16
+    }
 })
 
 terminal.addCommand("touch", function(args) {
-    if (!/^[a-zA-Z0-9\-\_]{1,20}(\.[a-zA-Z0-9]{1,10})*$/.test(args.filename))
+    if (!terminal.isValidFileName(args.filename))
         throw new Error("Invalid filename")
     if (terminal.fileExists(args.filename))
         throw new Error("File already exists")
@@ -500,7 +519,9 @@ terminal.addCommand("touch", function(args) {
     terminal.currFolder.content[args.filename] = newFile
 }, {
     description: "create a file in the current directory",
-    args: ["filename"]
+    args: {
+        "filename": "the name of the file"
+    }
 })
 
 terminal.addCommand("lsusb", function() {
@@ -552,7 +573,7 @@ terminal.addCommand("style", async function(args) {
 
     let PRESETS = {}
     PRESETS["normal"] = new Preset("rgb(3,3,6)", "white")
-    PRESETS["ha©k€r"] = new Preset("black", "#4aff36", "#20C20E", "#20C20E")
+    PRESETS["haÂ©kâ‚¬r"] = new Preset("black", "#4aff36", "#20C20E", "#20C20E")
     PRESETS["light"] = new Preset("#255957", "#EEEBD3")
     PRESETS["fire"] = new Preset("linear-gradient(180deg, red, yellow)", "white")
     PRESETS["phebe"] = new Preset("linear-gradient(to right, red,orange,yellow,lightgreen,blue,indigo,violet)", "white")
@@ -637,11 +658,10 @@ addAlias("github", "run home/github.exe")
 
 terminal.addCommand("clear", async function() {
     window.location.reload()
-    await sleep(1000)
-    throw new Error("reloading failed.")
+    await sleep(3000)
+    throw new Error("did reloading fail?")
 }, {
-    description: "clear the terminal",
-    helpVisible: true
+    description: "clear the terminal"
 })
 
 {
@@ -864,30 +884,32 @@ terminal.addCommand("brainfuck", function(args) {
 
 addAlias("bf", "brainfuck")
 
-terminal.addFunction("alias", function(rawArgs, funcInfo) {
-    let args = getArgs(funcInfo, ["alias", "command"])
+terminal.addCommand("alias", function(args) {
     let alias = args.alias, command = args.command
 
     if (terminal.functions.map(f => f.name.toLowerCase()).includes(alias.toLowerCase())) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.COLOR_1]: alias}} already exists!\n`
-        return
+        throw new Error("Command/Alias already exists!")
     }
     if (!String(alias).match(/^[a-zA-Z][-\_0-9a-zA-Z]*$/) || alias.length > 20) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Invalid Alias!\n`
-        return
+        throw new Error("Invalid alias!")
     }
-    if (!terminal.functions.map(f => f.name).includes(command)) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Command ${{[Color.COLOR_1]: command}} not found!\n`
-        return
-    }
-    addAlias(alias, command)
-}, "create a new alias for a given function")
 
-terminal.addFunction("lscmds", async function(rawArgs) {
-    let namedArgs = extractNamedArgs(rawArgs)
-    let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
-    if (namedArgs.md) {
-        let maxFuncLength = terminal.functions.reduce((p, c) => Math.max(p, c.name.length), 0)
+    addAlias(alias, command)
+}, {
+    description: "create a new alias for a given function",
+    args: {
+        alias: "name of the new alias",
+        command: "name of the command to be aliased"
+    }
+})
+
+terminal.addCommand("lscmds", async function(args) {
+    let functions = [...terminal.visibleFunctions]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => a.name.length - b.name.length)
+    if (args.md) {
+        functions.sort((a, b) => a.name.localeCompare(b.name))
+        let maxFuncLength = terminal.visibleFunctions.reduce((p, c) => Math.max(p, c.name.length), 0)
         const allDescriptions = functions.map(f => f.description ? f.description : "undefined")
         let maxDescLength = allDescriptions.reduce((p, c) => Math.max(p, c.length), 0)
         let text = ""
@@ -900,29 +922,81 @@ terminal.addFunction("lscmds", async function(rawArgs) {
         }
         terminal.printLine(text)
         await navigator.clipboard.writeText(text)
+        terminal.printLine("Copied to Clipboard âœ“")
         return
     }
 
-    let tempLine = ""
-    for (let terminalFunc of functions) {
-        tempLine += terminalFunc.name
-        terminal.printCommand(terminalFunc.name, terminalFunc.name, Color.WHITE, false)
-        terminal.print(" ")
-        if (tempLine.length > 40) {
-            tempLine = ""
-            terminal.printLine()
-        } else {
-            tempLine += " "
+    function createTableData(columns) {
+        let columnHeight = Math.ceil(functions.length / columns)
+        let tableData = Array.from({length: columnHeight}, () => Array.from({length: columns}, () => ""))
+        let columnIndex = 0
+        let functionIndex = 0
+        while (true) {
+            let func = functions[functionIndex]
+            if (!func) break
+            tableData[functionIndex % columnHeight][columnIndex] = func.name
+            if (functionIndex % columnHeight == columnHeight - 1) columnIndex++
+            functionIndex++
+        }
+        return tableData
+    }
+
+    function printTable(tableData) {
+        let columnWidths = []
+        for (let i = 0; i < tableData[0].length; i++) {
+            let column = tableData.map(row => row[i])
+            columnWidths.push(Math.max(...column.map(c => c === undefined ? 0 : c.length)))
+        }
+
+        for (let row of tableData) {
+            for (let i = 0; i < row.length; i++) {
+                let cell = row[i]
+                let width = columnWidths[i]
+                terminal.printCommand(stringPadBack(cell, width + 2), cell, Color.WHITE, false)
+            }
+            terminal.addLineBreak()
         }
     }
-    if (tempLine.trim().length > 0) terminal.printLine()
-    terminal.print("Use ")
-    terminal.printCommand("whatis *", "whatis *", Color.COLOR_1, false)
-    terminal.printLine(" to see all descriptions")
 
-}, "list all existing commands", true)
+    function calculateTableWidth(tableData) {
+        let columnWidths = []
+        for (let i = 0; i < tableData[0].length; i++) {
+            let column = tableData.map(row => row[i])
+            columnWidths.push(Math.max(...column.map(c => c === undefined ? 0 : c.length)))
+        }
 
-let shutDownFunc = async function() {
+        return columnWidths.reduce((p, c) => p + c + 2, 0)
+    }
+
+    for (let tableWidth = 20; tableWidth >= 1; tableWidth--) {
+        let tableData = createTableData(tableWidth)
+
+        let width = calculateTableWidth(tableData)
+
+        if (width <= 70 || tableWidth == 1) {
+            printTable(tableData)
+            break
+        }
+    }
+
+    terminal.addLineBreak()
+    terminal.printLine(`- in total, ${terminal.functions.length} commands have been implemented`)
+    terminal.print("- use ")
+    terminal.printCommand("man", "man", Color.WHITE, false)
+    terminal.printLine(" <cmd> to get more information about a command")
+    terminal.print("- use ")
+    terminal.printCommand("whatis *", "whatis *", Color.WHITE, false)
+    terminal.printLine(" to see all commands including their description")
+
+}, {
+    description: "list all available commands",
+    helpVisible: true,
+    args: {
+        "?md": "format output as markdown table"
+    }
+})
+
+terminal.addCommand("shutdown", async function() {
     terminal.printf`Preparing Shutdown`
     for (let i = 0; i < 10; i++) {
         terminal.print(".")
@@ -931,7 +1005,8 @@ let shutDownFunc = async function() {
     terminal.printLine()
     await terminal.animatePrint("Initiating Shutdown Process......")
     for (let i = 10; i > 0; i--) {
-        terminal.printf`${{[Color.COLOR_1]: `${stringPad(String(i), 2)}`}} Seconds left\n`
+        terminal.print(i, Color.COLOR_1)
+        terminal.printLine(" Seconds left")
         await sleep(1000)
     }
     await sleep(1000)
@@ -942,12 +1017,15 @@ let shutDownFunc = async function() {
     await terminal.animatePrint("I guess this is just a website.")
     await sleep(1000)
     await terminal.animatePrint("Let's just not shutdown. Have a good day!")
-}
+}, {
+    description: "shutdown the terminal"
+})
 
-terminal.addFunction("shutdown", shutDownFunc, "shutdown the website... or not?")
-terminal.addFunction("reboot", () => window.location.reload(), "reboot the website")
+terminal.addCommand("reboot", () => window.location.reload(), {
+    description: "reboot the website"
+})
 
-terminal.addFunction("reset", async function() {
+terminal.addCommand("reset", async function() {
     async function animatedDo(action) {
         return new Promise(async resolve => {
             terminal.print(action)
@@ -960,16 +1038,14 @@ terminal.addFunction("reset", async function() {
             resolve()
         })
     }
-    return new Promise(async resolve => {
+    return new Promise(async () => {
         await animatedDo("resetting")
         localStorage.removeItem("terminal-autosave")
         setTimeout(() => window.location.reload(), 500)
     })
-}, "reset everything", true)
-
-terminal.addFunction("nano", async function() {
-    terminal.printLine("nano isn't installed. You can try 'edit' though")
-}, "open nano editor")
+}, {
+    description: "reset the terminal"
+})
 
 async function fileFromUpload(fileType=null) {
     return new Promise(async (resolve, reject) => {
@@ -1061,7 +1137,7 @@ async function getImageFromUpload() {
     })
 }
 
-terminal.addFunction("password", async function(argString) {
+terminal.addCommand("password", async function(args) {
     function generatePassword(length, characters, repeatChars) {
         let password = String()
         let tries = 0
@@ -1082,69 +1158,47 @@ terminal.addFunction("password", async function(argString) {
         }
         return password
     }
-    let standardChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$#@%&"
-    let namedArgs = extractNamedArgs(argString)
-    let length = 20
-    let numPasswords = 1
-    let norepeat = false
-    let characters = standardChars
-    if (namedArgs.hasOwnProperty("h") || namedArgs.hasOwnProperty("help")) {
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} password ${{[Color.COLOR_1]: "-l <length> -c <characters> -n <num-passwords> -norepeat"}}'\n`
-        terminal.printLine(`> length: The length of the password. Defaults to ${length}`)
-        terminal.printLine("> characters: The characters to use in the password. Defaults to:")
-        terminal.printLine(`    ${standardChars}`)
-        terminal.printLine("> norepeat: if present, the password will not repeat characters")
-        terminal.printLine("> num-passwords: how many passwords to generate. Defaults to 1")
-        return
-    }
-    if (namedArgs.hasOwnProperty("l")) {
-        length = parseInt(namedArgs.l)
-        if (isNaN(length)) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid length!\n`
-            return
-        }
-    }
-    if (namedArgs.hasOwnProperty("c")) {
-        characters = namedArgs.c
-    }
-    if (namedArgs.hasOwnProperty("norepeat")) {
-        norepeat = true
-    }
-    if (namedArgs.hasOwnProperty("n")) {
-        numPasswords = parseInt(namedArgs.n)
-        if (isNaN(numPasswords) || numPasswords < 1 || numPasswords > 100) {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid num-passwords!\n`
-            return
-        }
-    }
-    for (let i = 0; i < numPasswords; i++) {
-        let password = generatePassword(length, characters, norepeat)
-        if (password.length == length)
+    for (let i = 0; i < args.n; i++) {
+        let password = generatePassword(args.l, args.c, args.norepeat)
+        if (password.length == args.l)
             terminal.printf`${{[Color.COLOR_1]: password}}\n`
         else
             break
-        if (i == 0 && numPasswords == 1) {
+        if (i == 0 && args.n == 1) {
             await sleep(100)
             await navigator.clipboard.writeText(password)
-            terminal.printLine("Copied to Clipboard ✓")
+            terminal.printLine("Copied to Clipboard âœ“")
         }
     }
-}, "generate a new random password")
+}, {
+    description: "Generate a random password",
+    args: {
+        "?l:n:1~1000": "The length of the password",
+        "?c": "The characters to use in the password",
+        "?norepeat": "If present, the password will not repeat characters",
+        "?n:n:1~100": "Number of passwords to generate"
+    },
+    standardVals: {
+        l: 20,
+        c: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$#@%&",
+        n: 1,
+        norepeat: false
+    }
+})
 
-terminal.addFunction("img2ascii", async function() {
+terminal.addCommand("img2ascii", async function() {
     return new Promise(async resolve => {
 
         try {
             var image = await getImageFromUpload()
         } catch {
-            terminal.printf`${{[Color.RED]: "Error"}}: Image Upload Failed\n`
+            terminal.printError("Image Upload Failed")
             resolve()
             return
         }
 
         let outputSize = {x: 60, y: undefined}
         outputSize.y = parseInt(outputSize.x * (image.height / image.width) * 0.6)
-        console.log(outputSize, image.width, image.height)
 
         let asciiChars = " .:-=+*#%@"
 
@@ -1191,7 +1245,9 @@ terminal.addFunction("img2ascii", async function() {
 
         resolve()
     })
-}, "image to ascii converter")
+}, {
+    description: "Convert an image to ASCII art"
+})
 
 function newMathEnv() {
     let jsEnv = new JsEnvironment()
@@ -1249,8 +1305,7 @@ terminal.addCommand("solve", async function(args) {
     try {
         var [LHS, RHS] = [Function("x", `return ${left}`), Function("x", `return ${right}`)]
     } catch {
-        terminal.printf`${{[Color.RED]: "Error"}}: Invalid equation!\n`
-        return
+        throw new Error("Invalid equation!")
     }
     function findSolution(minX, maxX, resolution, depth) {
         let diff = maxX - minX
@@ -1720,7 +1775,7 @@ terminal.addCommand("cal", async function(args) {
     args: ["?month", "?year"]
 })
 
-terminal.addFunction("bc", async function() {
+terminal.addCommand("bc", async function() {
     while (true) {
         let text = await terminal.prompt()
         let [result, error] = evalJsEnv.eval(text)
@@ -1730,17 +1785,23 @@ terminal.addFunction("bc", async function() {
             terminal.printf`${{[Color.rgb(38, 255, 38)]: ">"}} ${{[Color.WHITE]: String(result)}}\n`
         }
     }
-}, "compute the value of a mathematical expression")
+}, {
+    description: "start a bc (basic calculator) session"
+})
 
-terminal.addFunction("pwd", function() {
+terminal.addCommand("pwd", function() {
     terminal.printLine("/" + terminal.pathAsStr)
-}, "display the current working directory")
+}, {
+    description: "print the current working directory"
+})
 
-terminal.addFunction("uname", function() {
-    terminal.printLine("Website")
-}, "display the name of the operating system")
+terminal.addCommand("uname", function() {
+    terminal.printLine("NOELOS OS 1.0.5")
+}, {
+    description: "print the operating system name"
+})
 
-terminal.addFunction("factor", async function() {
+terminal.addCommand("factor", async function() {
     function primeFactors(n) {
         let i = 2
         let factors = []
@@ -1758,6 +1819,8 @@ terminal.addFunction("factor", async function() {
         return factors
     }
 
+    terminal.printLine("Type a number to factorize it.")
+
     while (true) {
         let text = await terminal.prompt()
         for (let word of text.trim().split(" ").map(w => w.trim()).filter(w => w.length > 0)) {
@@ -1770,7 +1833,9 @@ terminal.addFunction("factor", async function() {
             }
         }
     }
-}, "calculate the prime factors of given numbers")
+}, {
+    description: "print the prime factors of a number"
+})
 
 class CliApi {
 
@@ -1790,52 +1855,38 @@ class CliApi {
 
 const KEY_REGEX = /^[a-zA-Z\_\-][a-zA-Z\_\-0-9\#\~]*$/
 
-terminal.addFunction("get", async function(rawArgs) {
-    let key = rawArgs.trim()
-    if (key.length == 0) {
-        terminal.printLine(`You must supply 1 argument:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} get ${{[Color.COLOR_1]: "<key>"}}'\n`
-        return
-    }
-    if (!KEY_REGEX.test(key)) {
+terminal.addCommand("get", async function(args) {
+    if (!KEY_REGEX.test(args.key)) {
         terminal.printf`${{[Color.RED]: "Error"}}: Invalid key format!\n`
         return
     }
-    let value = await CliApi.get(key)
+    let value = await CliApi.get(args.key)
     terminal.printf`${{[Color.LIGHT_GREEN]: ">>>"}} ${{[Color.WHITE]: value}}\n`
-}, "get a value from the server")
-
-terminal.addFunction("set", async function(rawArgs) {
-    let parsedArgs = parseArgs(rawArgs)
-    if (parsedArgs.length != 2) {
-        terminal.printLine(`You must supply 2 arguments:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} set ${{[Color.COLOR_1]: "<key> <value>"}}'\n`
-        return
+}, {
+    description: "get a value from the server",
+    args: {
+        key: "the key to get the value of"
     }
-    let key = parsedArgs[0]
-    let value = parsedArgs[1]
-    if (!KEY_REGEX.test(key)) {
+})
+
+terminal.addCommand("set", async function(args) {
+    if (!KEY_REGEX.test(args.key)) {
         terminal.printf`${{[Color.RED]: "Error"}}: Invalid key format!\n`
         return
     }
-    if (value.length > 255) {
+    if (args.value.length > 255) {
         terminal.printf`${{[Color.RED]: "Error"}}: Value too large!\n`
         return
     }
-    await CliApi.set(key, value)
+    await CliApi.set(args.key, args.value)
     terminal.printf`${{[Color.LIGHT_GREEN]: "Success"}}\n`
-}, "set a value on the server")
-
-terminal.addFunction("groups", function(rawArgs) {
-    let users = rawArgs.split(" ").filter(x => x.length > 0)
-    if (users.length == 0) {
-        terminal.printLine(`adm cdrom sudo dip plugdev cool epic funny`)
-    } else {
-        for (let user of users) {
-            terminal.printf`groups: '${{[Color.COLOR_1]: user}}': no such user\n`
-        }
+}, {
+    description: "set a value on the server",
+    args: {
+        key: "the key to set the value of",
+        value: "the value to set"
     }
-}, "display the groups of a user")
+})
 
 terminal.addCommand("head", function(args) {
     let file = terminal.getFile(args.file)
@@ -1852,8 +1903,8 @@ terminal.addCommand("head", function(args) {
 
 terminal.addCommand("whatis", function(args) {
     if (args.command == "*") {
-        let maxFuncLength = terminal.functions.reduce((p, c) => Math.max(p, c.name.length), 0)
-        let functions = [...terminal.functions].sort((a, b) => a.name.localeCompare(b.name))
+        let maxFuncLength = terminal.visibleFunctions.reduce((p, c) => Math.max(p, c.name.length), 0)
+        let functions = [...terminal.visibleFunctions].sort((a, b) => a.name.localeCompare(b.name))
         for (let func of functions) {
             let funcStr = stringPadBack(func.name, maxFuncLength)
             terminal.printCommand(funcStr, func.name, Color.WHITE, false)
@@ -1877,10 +1928,12 @@ terminal.addCommand("whatis", function(args) {
 
 const START_TIME = Date.now()
 
-terminal.addFunction("w", function() {
+terminal.addCommand("w", function() {
     terminal.printf`USER   TIME_ELAPSED\n`
     terminal.printf`${{[Color.COLOR_1]: "root"}}   ${{[Color.LIGHT_GREEN]: ((Date.now() - START_TIME) / 1000) + "s"}}\n`
-}, "show the active users and their time elapsed")
+}, {
+    description: "print the current time elapsed"
+})
 
 terminal.addCommand("history", function() {
     for (let i = Math.max(0, terminal.prevCommands.length - 1000); i < terminal.prevCommands.length; i++) {
@@ -1906,12 +1959,14 @@ terminal.addCommand("history", function() {
     addAlias("runfunc", "!")
 }
 
-terminal.addFunction("lscpu", function() {
+terminal.addCommand("lscpu", function() {
     terminal.printLine("your computer probably has a cpu!")
-}, "get some helpful info about your cpu")
+}, {
+    description: "get some helpful info about your cpu"
+})
 
-terminal.addFunction("kill", function(rawArgs) {
-    if (rawArgs.trim().includes("turtlo")) {
+terminal.addCommand("kill", function(args) {
+    if (args.process.toLowerCase() == "turtlo") {
         if (killTurtlo()) {
             terminal.printLine("done.")
         } else {
@@ -1920,13 +1975,15 @@ terminal.addFunction("kill", function(rawArgs) {
     } else {
         terminal.printLine("sorry no killing allowed here (except turtlo)")
     }
-}, "kill a process")
-
-terminal.addFunction("yes", async function(rawArgs) {
-    let message = rawArgs.trim()
-    if (message.length == 0) {
-        message = "y"
+}, {
+    description: "kill a process",
+    args: {
+        "process": "the process to kill"
     }
+})
+
+terminal.addCommand("yes", async function(args) {
+    let message = args.message
     let stop = false
     document.addEventListener("keydown", function(e) {
         if (e.ctrlKey && e.key.toLowerCase() == "c") {
@@ -1936,25 +1993,30 @@ terminal.addFunction("yes", async function(rawArgs) {
     while (!stop) {
         let element = terminal.printLine(message)
         element.scrollIntoView()
-        await sleep(100)
+        await sleep(args.f ? 0 : 100)
     }
     terminal.printLine("^C")
-}, "repeat a message until you press Ctrl+C")
+}, {
+    description: "print a message repeatedly",
+    args: {
+        "?message": "the message to print",
+        "?f": "fast mode"
+    },
+    standardVals: {message: "y"}
+})
 
-terminal.addFunction("zip", function() {
+terminal.addCommand("zip", function() {
     terminal.printLine("zip it lock it put it in your pocket")
-}, "zip a file")
-
-terminal.addFunction("dir", function() {
-    terminal.printf`Why not use ${{[Color.COLOR_1]: "ls"}}?\n`
-}, "list the files in the current directory")
+}, {
+    description: "zip a file"
+})
 
 terminal.addCommand("reverse", async function(args) {
     let reversed = args.message.split("").reverse().join("")
     terminal.printLine(reversed)
     if (args.c) {
         await navigator.clipboard.writeText(reversed)
-        terminal.printLine("Copied to Clipboard ✓", Color.COLOR_1)
+        terminal.printLine("Copied to Clipboard âœ“", Color.COLOR_1)
     }
 }, {
     description: "reverse a message",
@@ -2023,7 +2085,7 @@ terminal.addCommand("cowthink", function(args) {
     args: ["*message"]
 })
 
-terminal.addFunction("cmatrix", async function(rawArgs) {
+terminal.addCommand("cmatrix", async function(rawArgs) {
     let [canvas, intervalFunc] = makeCMatrix()
     let stopped = false
     document.addEventListener("keydown", function(e) {
@@ -2036,7 +2098,9 @@ terminal.addFunction("cmatrix", async function(rawArgs) {
     while (!stopped) {
         await sleep(100)
     }
-}, "feel cool, be hacker")
+}, {
+    description: "show the matrix"
+})
 
 terminal.addCommand("download", function(args) {
     function downloadFile(fileName, file) {
@@ -2110,7 +2174,7 @@ class TodoApi {
 
 }
 
-terminal.addFunction("todo", async function(rawArgs) {
+terminal.addCommand("todo", async function(rawArgs) {
     let parsedArgs = parseArgs(rawArgs, false)
 
     const commands = {
@@ -2180,8 +2244,6 @@ terminal.addFunction("todo", async function(rawArgs) {
     let command = parsedArgs[0]
     let args = parsedArgs.slice(1)
 
-    console.log(command, args)
-
     if (!(command in commands)) {
         terminal.printLine(`Unknown command! Available commands:`)
         showAvailableCommands()
@@ -2195,11 +2257,14 @@ terminal.addFunction("todo", async function(rawArgs) {
     }
 
     await commands[command](...args)
-}, "manage todo lists")
+}, {
+    description: "manage a todo list",
+    rawArgMode: true
+})
 
 let audioContext = null
 
-terminal.addFunction("morse", async function(rawArgs) {
+terminal.addCommand("morse", async function(args) {
     function mostPopularChar(string) {
         string = string.toLowerCase().trim()
         let occurences = {}
@@ -2248,7 +2313,7 @@ terminal.addFunction("morse", async function(rawArgs) {
         "_": "..--.-", '"': ".-..-.",
         "$": "...-..-", "@": ".--.-."
     }
-    let text = rawArgs.trim().toUpperCase()
+    let text = args.text.trim().toUpperCase()
     const noinput = () => terminal.printf`${{[Color.RED]: "Error"}}: No input-text given!\n`
     try {
         playFrequency(0, 0)
@@ -2281,11 +2346,11 @@ terminal.addFunction("morse", async function(rawArgs) {
     } else {
         for (let char of text) {
             if (char in MORSE) {
-                let morseCode = `${MORSE[char]}`
+                let morseCode = `${MORSE[char].replaceAll(".", "â€¢")}`
                 for (let morseChar of morseCode) {
                     terminal.print(morseChar)
                     if (audioContext) {
-                        if (morseChar == ".") {
+                        if (morseChar == "â€¢") {
                             playFrequency(400, 300 * audioSpeed)
                             await sleep(600 * audioSpeed)
                         } else if (morseChar == "-") {
@@ -2310,43 +2375,34 @@ terminal.addFunction("morse", async function(rawArgs) {
         terminal.printLine()
         if (!text) noinput()
     }
-}, "translate latin to morse or morse to latin")
+}, {
+    description: "translate latin to morse or morse to latin",
+    args: {
+        "*text": "text to translate"
+    }
+})
 
-terminal.addFunction("fizzbuzz", function(rawArgs) {
-    let maxNum = 50
-    if (rawArgs.trim().length > 0) {
-        if (!isNaN(rawArgs.trim())) {
-            maxNum = parseInt(rawArgs)
-        } else {
-            terminal.printf`${{[Color.RED]: "Error"}}: Invalid Max!\n`
-            return
-        }
-    }
-    if (maxNum < 3 || maxNum > 1000) {
-        terminal.printf`${{[Color.RED]: "Error"}}: Invalid Max!\n`
-        return
-    }
-    for (let i = 1; i <= maxNum; i++) {
+terminal.addCommand("fizzbuzz", function(args) {
+    for (let i = 1; i <= args.max; i++) {
         let outs = ""
         if (i % 3 == 0) outs += "fizz"
         if (i % 5 == 0) outs += "buzz"
         if (outs == "") outs += i
         terminal.printLine(outs)
     }
-}, "do the fizzbuzz")
+},{
+    description: "print the fizzbuzz sequence",
+    args: {
+        "?max:n:1~1000": "the maximum number to print"
+    },
+    standardVals: {
+        max: 15
+    }
+})
 
-terminal.addFunction("ceasar", function(rawArgs, funcInfo) {
-    let args = parseArgs(rawArgs, false)
-    if (args.length != 2) {
-        terminal.printLine(`You must supply 2 arguments:`)
-        terminal.printf`'${{[Color.COLOR_2]: "$"}} ceasar ${{[Color.COLOR_1]: "<text> <shift-num>"}}'\n`
-        return
-    }
-    let [text, maybeShiftVal] = args
-    let shiftVal = 1
-    if (!isNaN(maybeShiftVal.trim())) {
-        shiftVal = parseInt(maybeShiftVal.trim())
-    }
+terminal.addCommand("ceasar", function(args) {
+    let text = args.text
+    let shiftVal = args.shift
     let alphabet = "abcdefghijklmnopqrstuvwxyz"
     function betterMod(n, m) {
         while (n < 0) n += m
@@ -2362,11 +2418,19 @@ terminal.addFunction("ceasar", function(rawArgs, funcInfo) {
         terminal.print(newChar)
     }
     terminal.printLine()
-}, "encrypt a text using the ceasar cipher")
+}, {
+    description: "shift the letters of a text",
+    args: {
+        "text": "the text to shift",
+        "?shift:n:-26~26": "the shift value"
+    },
+    standardVals: {
+        shift: 1
+    }
+})
 
-terminal.addFunction("clock", async function(rawArgs) {
-    let namedArgs = extractNamedArgs(rawArgs)
-    let displayMillis = !!namedArgs.millis
+terminal.addCommand("clock", async function(args) {
+    let displayMillis = !!args.m
     let gridSize = {
         x: 20*2.2,
         y: 20
@@ -2442,9 +2506,14 @@ terminal.addFunction("clock", async function(rawArgs) {
         update()
         await sleep(displayMillis ? 40 : 1000)
     }
-}, "display the current time")
+}, {
+    description: "display a clock",
+    args: {
+        "?m": "display milliseconds"
+    }
+})
 
-terminal.addFunction("timer", async function(rawArgs, funcInfo) {
+terminal.addCommand("timer", async function(rawArgs) {
     let words = rawArgs.split(" ").filter(w => w.length > 0)
     let ms = 0
     for (let word of words) {
@@ -2540,56 +2609,18 @@ terminal.addFunction("timer", async function(rawArgs, funcInfo) {
     if (audioContext) {
         await alarm()
     }
-}, "start a timer")
+}, {
+    description: "set a timer",
+    rawArgMode: true
+})
 
-terminal.addFunction("bmi", async function() {
-    let mass = await terminal.promptNum("mass in kg: ", {min: 0, max: 1000})
-    let height = await terminal.promptNum("height in meters (e.g. 1.8): ", {min: 0, max: 1000})
-    let bmi = (mass) / (height ** 2)
-    terminal.print("Your BMI is...  ")
-    await sleep(2000)
-    terminal.printLine(bmi)
-
-    let evaluations = [
-        [16.0, "a lot less than usual"],
-        [16.9, "a bit less than usual"],
-        [18.4, "a tiny bit less than usual"],
-        [24.9, "everything is in butter"],
-        [29.9, "a little more than usual"],
-        [34.9, "you're obese. (class 1)"],
-        [39.9, "you're obese. (class 2)"],
-        [Infinity, "you're obese. (class 3)"]
-    ]
-    let evaluation = null
-    for (let [minVal, tempEval] of evaluations) {
-        if (bmi < minVal) {
-            evaluation = tempEval
-            break
-        }
-    }
-    if (evaluation == 0) {
-        evaluation = "superhuman!"
-    }
-    terminal.printLine(`Your diagnosis: ${evaluation}`)
-    terminal.print("source: ")
-    terminal.printLink("https://de.wikipedia.org/wiki/Body-Mass-Index")
-}, "calculate a body-mass-index")
-
-terminal.addFunction("mandelbrot", async function(rawArgs) {
-    let gridSize = {x: 60, y: 21}
+terminal.addCommand("mandelbrot", async function(args) {
+    let gridSize = {x: 0, y: 0}
     gridSize.x = ~~(terminal.approxWidthInChars - 10)
-    
-    let namedArgs = extractNamedArgs(rawArgs)
-    if (namedArgs.w && !isNaN(namedArgs.w) && namedArgs.w.length != 0) {
-        gridSize.x = parseInt(namedArgs.w)
-    }
-    
     gridSize.y = ~~(gridSize.x * 1 / 3)
+    if (args.w) gridSize.x = ~~args.w
+    if (args.h) gridSize.y = ~~args.h
     if (gridSize.y % 2 == 1) gridSize.y++
-
-    if (namedArgs.h && !isNaN(namedArgs.h) && namedArgs.h.length != 0) {
-        gridSize.y = parseInt(namedArgs.h)
-    }
 
     let plotSize = {xmin: -1.85, xmax: 0.47, ymin: -0.95, ymax: 0.95}
     let grid = Array.from(Array(gridSize.y)).map(() => Array(gridSize.x).fill(" "))
@@ -2635,15 +2666,35 @@ terminal.addFunction("mandelbrot", async function(rawArgs) {
         }
     }
     drawGrid()
-}, "draw the mandelbrot set")
+}, {
+    description: "draws the mandelbrot set",
+    args: {
+        "?w:n:10~1000": "width of the plot",
+        "?h:n:10~1000": "height of the plot"
+    }
+})
 
-terminal.addFunction("hidebtns", function() {
+terminal.addCommand("hidebtns", function() {
     document.documentElement.style.setProperty("--terminal-btn-display", "none")
-}, "hide the terminal buttons")
+    localStorage.setItem("hideBtns", "true")
+}, {
+    description: "hides the buttons in the terminal"
+})
 
-terminal.addFunction("unhidebtns", function() {
+terminal.addCommand("unhidebtns", function() {
     document.documentElement.style.setProperty("--terminal-btn-display", "block")
-}, "unhide the terminal buttons")
+    localStorage.setItem("hideBtns", "false")
+}, {
+    description: "unhides the buttons in the terminal"
+})
+
+function hideBtns() {
+    if (localStorage.getItem("hideBtns") == "true" || isMobile) {
+        document.documentElement.style.setProperty("--terminal-btn-display", "none")
+    }
+}
+
+hideBtns()
 
 function fileTooLargeWarning() {
     terminal.print("Warning", Color.RED)
@@ -2651,7 +2702,7 @@ function fileTooLargeWarning() {
     terminal.printLine("         Thus, it will disappear when reloading.")
 }
 
-terminal.addFunction("upload", async function() {
+terminal.addCommand("upload", async function() {
     try {
         var [fileName, fileContent, isDataURL] = await fileFromUpload()
     } catch {
@@ -2671,10 +2722,12 @@ terminal.addFunction("upload", async function() {
     if (fileContent.length > MAX_FILE_SIZE) {
         fileTooLargeWarning()
     }
-}, "upload a file")
+}, {
+    description: "upload a file from your computer"
+})
 
-terminal.addFunction("letters", function(rawArgs) {
-    let text = rawArgs.trim().toLowerCase()
+terminal.addCommand("letters", function(args) {
+    let text = args.text.trim().toLowerCase()
 
     if (!text)
         throw new Error("No text given")
@@ -2740,7 +2793,12 @@ terminal.addFunction("letters", function(rawArgs) {
         output = pasteHorizontal(output, AsciiArtLetters[text[i]], text[i - 1], text[i])
     }
     terminal.printLine(output)
-}, "draw the input in cool letters")
+}, {
+    description: "prints the given text in ascii art",
+    args: {
+        "*text": "the text to print"
+    }
+})
 
 terminal.addCommand("du", function(args) {
     let fileNames = []
@@ -2791,12 +2849,14 @@ terminal.addCommand("href", function(args) {
     args: ["url"]
 })
 
-terminal.addFunction("pv", async function(rawArgs) {
-    await terminal.animatePrint(rawArgs)
-}, "print text with a cool animation")
+terminal.addCommand("pv", async function(args) {
+    await terminal.animatePrint(args.message)
+}, {
+    description: "print a message with a typing animation",
+    args: ["*message"]
+})
 
-terminal.addFunction("cw", function(rawArgs, funcInfo) {
-    let args = getArgs(funcInfo, ["?date"], {date: null})
+terminal.addCommand("cw", function(args) {
     if (args.date == "today" || !args.date) {
         args.date = "today"
         const today = new Date()
@@ -2844,9 +2904,15 @@ terminal.addFunction("cw", function(rawArgs, funcInfo) {
 
     terminal.printLine(`calenderweek of ${args.date}: ${calendarWeek}`)
 
-}, "get the calendar week for a given date")
+}, {
+    description: "get the calendar week of a date",
+    args: {
+        "date": "the date to get the calendar week of"
+    },
+    standardVals: {date: null}
+})
 
-terminal.addFunction("donut", async function() {
+terminal.addCommand("donut", async function() {
     // mostly copied from original donut.c code
 
                let p=terminal.
@@ -2869,7 +2935,9 @@ terminal.addFunction("donut", async function() {
             .join("")};while(1){f();
               await sleep(30);}
 
-}, "do the spinny donut.c")
+}, {
+    description: "display a spinning donut"
+})
 
 terminal.addCommand("grep", async function(args) {
     let recursive = args.r ?? false
@@ -2959,7 +3027,14 @@ terminal.addCommand("grep", async function(args) {
 
 }, {
     description: "search for a pattern in a file",
-    args: ["pattern", "*file", "?r", "?i", "?v", "?x"],
+    args: {
+        "pattern": "the pattern to search for",
+        "file": "the file to search in",
+        "?r": "search recursively",
+        "?i": "ignore case",
+        "?v": "invert match",
+        "?x": "match whole lines",
+    }
 })
 
 terminal.addCommand("man", function(args) {
@@ -2984,3 +3059,718 @@ terminal.addCommand("man", function(args) {
     args: {"command": "the command to show the manual page for"},
     helpVisible: true
 })
+
+terminal.addCommand("search", async function(args) {
+    let combinedUrl = args.b + encodeURIComponent(args.query)
+    window.location.href = combinedUrl
+}, {
+    description: "search something via google.com",
+    args: {
+        "*query": "the search query",
+        "?b": "the base search-engine url"
+    },
+    standardVals: {
+        b: "https://www.google.com/search?q="
+    }
+})
+
+terminal.addCommand("pascal", async function(args) {
+    function generate(depth) {
+        let rows = []
+        let prevRow = []
+        for (let i = 0; i < depth; i++) {
+            let row = Array(i + 1)
+            row[0] = 1
+            row[i] = 1
+            for (let j = 1; j < i; j++)
+                row[j] = prevRow[j - 1] + prevRow[j]
+            rows.push(row)
+            prevRow = row
+        }
+        return rows
+    }
+
+    args.depth = ~~args.depth
+
+    let data = generate(args.depth)
+    // highest number is the one at the bottom middle always
+    let maxNumWidth = data[args.depth - 1][Math.floor(args.depth / 2)].toString().length
+    let nums = data.map(row => row.map(n => stringPadMiddle(n, maxNumWidth)))
+    let rows = nums.map(row => row.join(" "))
+
+    if (args.f) {
+        terminal.printLine(rows[rows.length - 1])
+        return
+    }
+
+    for (let i = 0; i < rows.length; i++) {
+        terminal.printLine(stringPadMiddle(rows[i], args.depth * (maxNumWidth + 1)))
+    }
+
+}, {
+    description: "print a pascal triangle",
+    args: {
+        "?depth:n:1~100": "the depth of the triangle",
+        "?f": "only show the final row"
+    },
+    standardVals: {
+        depth: 10
+    }
+})
+
+terminal.addCommand("logistic-map", async function(args) {
+    const maxIterations = 100
+    const startValue = 0.5
+    const minR = args.min
+    const maxR = args.max
+
+    if (minR >= maxR) {
+        throw new Error("max value must be greater than min value")
+    }
+
+    if (maxR - minR < 0.5) {
+        throw new Error("span of values too small to plot")
+    }
+    
+    const fieldSize = new Vector2d(args.w, args.h)
+
+    let field = Array.from(Array(fieldSize.y), () => Array.from(Array(fieldSize.x), () => " "))
+
+    function drawNumberLines() {
+        for (let x = 0; x < 5; x++) {
+            let xPos = Math.floor((x - minR) / (maxR - minR) * fieldSize.x)
+            for (let y = 0; y < fieldSize.y; y++) {
+                if (xPos < 0 || xPos >= fieldSize.x) continue
+                field[y][xPos] = String(x)
+            }
+        }
+    }
+
+    function test(r) {
+        let currVal = startValue
+        for (let i = 0; i < maxIterations; i++) {
+            currVal = r * currVal * (1 - currVal)
+        }
+        let findings = new Set()
+        for (let i = 0; i < maxIterations; i++) {
+            currVal = r * currVal * (1 - currVal)
+            let rounded = Math.round(currVal * 10000) / 10000
+            findings.add(rounded)
+        }
+        return Array.from(findings)
+    }
+
+    let ys = []
+    for (let x = 0; x < fieldSize.x; x++) {
+        let xVal = (x / fieldSize.x) * (maxR - minR) + minR
+        ys.push(test(xVal))
+    }
+
+    let maxY = Math.max(...ys.flat()) + 0.1
+    for (let x = 0; x < fieldSize.x; x++) {
+        for (let yVal of ys[x]) {
+            let y = Math.floor(yVal / maxY * fieldSize.y)
+            let mirroredY = fieldSize.y - y - 1
+            if (mirroredY < 0 || mirroredY >= fieldSize.y) continue
+            field[mirroredY][x] = "#"
+        }
+    }
+
+    for (let y = 0; y < field.length; y++) {
+        let rowString = ""
+        for (let x = 0; x < field[y].length; x++) {
+            rowString += field[y][x]
+        }
+        terminal.printLine(rowString)
+    }
+
+}, {
+    description: "draw the logistic map",
+    args: {
+        "?min:n:-2~4": "minimum R value",
+        "?max:n:-2~4": "maximum R value",
+        "?w:n:10~200": "width of display",
+        "?h:n:5~100": "height of display"
+    },
+    standardVals: {
+        min: 0,
+        max: 4,
+        w: 80,
+        h: 20
+    },
+})
+
+terminal.addCommand("rndm", async function(args) {
+    args.min = ~~args.min
+    args.max = ~~args.max + 1
+
+    if (args.max - args.min <= 1)
+        throw new Error("max value must be greater than min value")
+
+    let range = args.max - args.min
+    let randomNum = (Date.now() % range) + args.min
+    terminal.printLine(randomNum)
+}, {
+    description: "generate a random number based on the current time",
+    args: {
+        "?min:n:0~100000": "minimum value (inclusive)",
+        "?max:n:0~100000": "maximum value (inclusive)",
+    },
+    standardVals: {
+        min: 1,
+        max: 100,
+    }
+})
+
+terminal.addCommand("vigenere", async function(args) {
+    const getCharValue = char => char.toLowerCase().charCodeAt(0) - 97
+    const getCharFromValue = value => String.fromCharCode(value + 97)
+    
+    if (!/^[a-zA-Z\s]+$/.test(args.message))
+        throw new Error("message must only contain letters and spaces")
+    else if (!/^[a-zA-Z]+$/.test(args.key))
+        throw new Error("key must only contain letters")
+
+    let output = ""
+
+    Array.from(args.message).forEach((character, i) => {
+        let charValue = getCharValue(character)
+        let keyValue = getCharValue(args.key[i % args.key.length])
+        let newValue = (charValue + keyValue) % 26
+        if (args.d) newValue = (charValue - keyValue + 26) % 26
+        output += getCharFromValue(newValue)
+    })
+
+    terminal.printLine(output)
+}, {
+    description: "encrypt/decrypt a message using the vigenere cipher",
+    args: {
+        "message": "the message to encrypt/decrypt",
+        "key": "the key to use",
+        "?d": "decrypt the message instead of encrypting it"
+    },
+})
+
+terminal.addCommand("sha256", async function(args) {
+    if (!window.crypto || !window.crypto.subtle)
+        throw new Error("crypto API not supported")
+
+    if (!args.s && !args.f) {
+        terminal.printError("must specify either -s or -f")
+        terminal.print("Use ")
+        terminal.printCommand("man sha256")
+        terminal.printLine(" for more information")
+        throw new IntendedError()
+    }
+
+    if (args.s && args.f)
+        throw new Error("cannot specify both -s and -f")
+
+    let text = ""
+    if (args.s) {
+        text = args.s
+    } else if (args.f) {
+        let file = terminal.getFile(args.f, FileType.READABLE)
+        text = file.content
+    }
+
+    let hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+    let hashArray = Array.from(new Uint8Array(hash))
+    let hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("")
+    terminal.printLine(hashHex)
+}, {
+    description: "calculate the SHA-256 hash of a message",
+    args: {
+        "?s": "a string to hash",
+        "?f": "a file to hash"
+    },
+    standardVals: {
+        s: null,
+        f: null
+    }
+})
+
+terminal.addCommand("base64", async function(args) {
+    let msg = args.message
+    let output = ""
+    if (args.d) {
+        output = atob(msg)
+    } else {
+        output = btoa(msg)
+    }
+    terminal.printLine(output)
+}, {
+    description: "encode/decode a message using base64",
+    args: {
+        "*message": "the message to encode/decode",
+        "?d": "decode the message instead of encoding it"
+    },
+})
+
+terminal.addCommand("joke", async function(args) {
+    let response = await fetch("https://official-joke-api.appspot.com/random_joke")
+    let joke = await response.json()
+    terminal.printLine(joke.setup)
+    await sleep(3000)
+    terminal.printLine(joke.punchline)
+}, {
+    description: "tell a joke",
+})
+
+terminal.addCommand("cheese", async function(args) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+        throw new Error("Device does not support MediaDevices API")
+
+    let stream = await navigator.mediaDevices.getUserMedia({video: true})
+    let canvas = document.createElement("canvas")
+
+    let context = canvas.getContext("2d")
+    let video = document.createElement("video")
+    video.srcObject = stream
+    video.play()
+
+    terminal.parentNode.appendChild(canvas)
+    canvas.style.display = "none"
+
+    await sleep(1000)
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+
+    if (Math.max(canvas.width, canvas.height) == 0) {
+        throw new Error("Invalid image source")
+    }
+
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    stream.getTracks().forEach(track => track.stop())
+
+    let imgSource = canvas.toDataURL("image/png")
+
+    terminal.printImg(imgSource, "cheese")
+    terminal.addLineBreak()
+
+}, {
+    description: "take a foto with your webcam",
+})
+
+terminal.addCommand("sorting", async function(args) {
+
+    let array = Array.from({length: args.n}, (_, i) => i + 1)
+
+    function shuffleArray() {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    shuffleArray()
+
+    let windowSize = Math.min((terminal.parentNode.clientWidth - 100) * 0.9, (terminal.parentNode.clientHeight - 100) * 0.9)
+
+    const elementSize = Math.max(Math.floor(windowSize / array.length), 1)
+
+    let elements = []
+    
+    function firstDraw() {
+        let parentContainer = document.createElement("div")
+        parentContainer.style.width = `${args.n * elementSize}px`
+        parentContainer.style.height = `${args.n * elementSize}px`
+        parentContainer.style.display = "grid"
+        parentContainer.style.gridTemplateColumns = `repeat(${args.n}, 1fr)`
+        parentContainer.style.alignItems = "end"
+        for (let i = 0; i < array.length; i++) {
+            let element = document.createElement("div")
+            element.style.backgroundColor = "white"
+            element.style.width = `${elementSize}px`
+            element.style.height = `${array[i] * elementSize}px`
+            elements.push(element)
+            parentContainer.appendChild(element)
+        }
+        terminal.parentNode.appendChild(parentContainer)
+    }
+
+    let prevElements = []
+    const swapColor = "lightgreen"
+
+    function unmark() {
+        for (let element of prevElements) {
+            element.style.backgroundColor = "white"
+        }
+        prevElements = []
+    }
+
+    function heightToFreq(height) {
+        const minFreq = 100
+        const maxFreq = 1000
+        return (height / args.n) * (maxFreq - minFreq) + minFreq
+    }
+
+    let waitTime = 100 / args.speed
+
+    function swap(i, j) {
+        unmark()
+        let temp = array[i]
+        array[i] = array[j]
+        array[j] = temp
+        elements[i].style.height = `${array[i] * elementSize}px`
+        elements[j].style.height = `${array[j] * elementSize}px`
+        elements[i].style.backgroundColor = swapColor
+        elements[j].style.backgroundColor = swapColor
+        prevElements = [elements[i], elements[j]]
+        if (!args.s) {
+            playFrequency(heightToFreq(array[i]), waitTime)
+        }
+    }
+
+    function mark(i) {
+        elements[i].style.backgroundColor = swapColor
+        prevElements.push(elements[i])
+        if (!args.s) {
+            playFrequency(heightToFreq(array[i]), waitTime)
+        }
+    }
+
+    function update(i) {
+        elements[i].style.height = `${array[i] * elementSize}px`
+    }
+
+    async function endAnimation() {
+        unmark()
+        for (let i = 0; i < array.length; i++) {
+            elements[i].style.backgroundColor = swapColor
+            if (!args.s) {
+                playFrequency(heightToFreq(array[i]), waitTime)
+            }
+            await sleep(waitTime)
+        }
+        await sleep(waitTime)
+        for (let i = 0; i < array.length; i++) {
+            elements[i].style.backgroundColor = "white"
+        }
+    }
+
+    const algorithms = {
+        "bubble": async function() {
+            for (let i = 0; i < array.length; i++) {
+                for (let j = 0; j < array.length - i - 1; j++) {
+                    if (array[j] > array[j + 1]) {
+                        swap(j, j + 1)
+                        await sleep(waitTime)
+                    }
+                }
+            }
+        },
+        "insertion": async function() {
+            for (let i = 1; i < array.length; i++) {
+                let j = i - 1
+                let key = array[i]
+                while (j >= 0 && array[j] > key) {
+                    swap(j, j + 1)
+                    await sleep(waitTime)
+                    j--
+                }
+                array[j + 1] = key
+            }
+        },
+        "selection": async function() {
+            for (let i = 0; i < array.length; i++) {
+                let minIndex = i
+                for (let j = i + 1; j < array.length; j++) {
+                    mark(j)
+                    await sleep(waitTime)
+                    unmark()
+                    if (array[j] < array[minIndex]) {
+                        minIndex = j
+                    }
+                }
+                swap(i, minIndex)
+                await sleep(waitTime)
+            }
+        },
+        "quick": async function() {
+            async function partition(min, max) {
+                let pivot = array[max]
+                let i = min - 1
+                for (let j = min; j < max; j++) {
+                    if (array[j] < pivot) {
+                        i++
+                        swap(i, j)
+                        await sleep(waitTime)
+                    }
+                }
+                swap(i + 1, max)
+                await sleep(waitTime)
+                return i + 1
+            }
+
+            async function quickSort(min, max) {
+                if (min < max) {
+                    let pi = await partition(min, max)
+                    await quickSort(min, pi - 1)
+                    await quickSort(pi + 1, max)
+                }
+            }
+
+            await quickSort(0, array.length - 1)
+        },
+        "heap": async function() {
+            async function heapify(n, i) {
+                let largest = i
+                let l = 2 * i + 1
+                let r = 2 * i + 2
+                if (l < n && array[l] > array[largest]) {
+                    largest = l
+                }
+                if (r < n && array[r] > array[largest]) {
+                    largest = r
+                }
+                if (largest != i) {
+                    swap(i, largest)
+                    await sleep(waitTime)
+                    await heapify(n, largest)
+                }
+            }
+
+            for (let i = Math.floor(array.length / 2) - 1; i >= 0; i--) {
+                await heapify(array.length, i)
+            }
+            for (let i = array.length - 1; i >= 0; i--) {
+                swap(0, i)
+                await sleep(waitTime)
+                await heapify(i, 0)
+            }
+        },
+        "merge": async function() { 
+            // inplace merge sort with marking
+            async function merge(start, mid, end) {
+                let i = start
+                let j = mid + 1
+                let temp = []
+                while (i <= mid && j <= end) {
+                    mark(i)
+                    mark(j)
+                    await sleep(waitTime)
+                    unmark()
+                    if (array[i] <= array[j]) {
+                        temp.push(array[i])
+                        i++
+                    } else {
+                        temp.push(array[j])
+                        j++
+                    }
+                }
+                while (i <= mid) {
+                    temp.push(array[i])
+                    i++
+                }
+                while (j <= end) {
+                    temp.push(array[j])
+                    j++
+                }
+                for (let i = start; i <= end; i++) {
+                    array[i] = temp[i - start]
+                    update(i)
+                    mark(i)
+                    await sleep(waitTime)
+                }
+            }
+
+            async function mergeSort(start, end) {
+                if (start < end) {
+                    let mid = Math.floor((start + end) / 2)
+                    await mergeSort(start, mid)
+                    await mergeSort(mid + 1, end)
+                    await merge(start, mid, end)
+                }
+            }
+
+            await mergeSort(0, array.length - 1)
+        }
+    }
+
+    if (args.algorithm === null) {
+        terminal.printLine("Available algorithms:")
+        for (let algorithm in algorithms) {
+            terminal.print("- ")
+            terminal.printCommand(algorithm, `sorting ${algorithm}`)
+        }
+        return
+    }
+
+    if (!(args.algorithm in algorithms)) {
+        throw new Error("Unknown algorithm")
+    }
+
+    firstDraw()
+
+    terminal.scroll()
+
+    await sleep(1000)
+
+    await algorithms[args.algorithm]()
+
+    await endAnimation()
+
+    unmark()
+
+}, {
+    description: "display a sorting algorithm",
+    args: {
+        "?algorithm": "the algorithm to display",
+        "?n:n:10~1000": "the number of elements to sort",
+        "?speed:n:0~100": "the speed of the sorting algorithm",
+        "?s": "silent mode (deactivate sound)"
+    },
+    standardVals: {
+        algorithm: null,
+        n: 20,
+        speed: 1,
+    }
+})
+
+terminal.addCommand("copy", async function(args) {
+    let file = terminal.getFile(args.file)
+    if (file.type == FileType.FOLDER)
+        throw new Error("Cannot copy a folder")
+    await navigator.clipboard.writeText(file.content)
+    terminal.printLine("Copied to Clipboard âœ“")
+}, {
+    description: "copy the file content to the clipboard",
+    args: {
+        "file": "the file to copy"
+    }
+})
+
+terminal.addCommand("kaprekar", async function(args) {
+    let startNumber = ~~args.n
+    let numDigits = startNumber.toString().length
+
+    let history = new Set([startNumber])
+
+    function f(n) {
+        let a = Array.from(n.toString())
+        let b = Array.from(n.toString())
+
+        while (a.length < numDigits)
+            a.push("0")
+
+        while (b.length < numDigits)
+            b.push("0")
+
+        a = a.sort().join("")
+        b = b.sort((a, b) => b - a).join("")
+
+        let m = b - a
+
+        terminal.printLine(`${b} - ${a} = ${stringPad(m, numDigits, "0")}`)
+
+        if (n === m || m === 0)
+            return n
+
+        if (history.has(m)) {
+            terminal.printLine("Cycle detected!")
+            return m
+        }
+
+        history.add(m)
+
+        return f(m)
+    }
+
+    f(startNumber)
+
+}, {
+    description: "display the kaprekar steps of a number",
+    args: {
+        "n:n:1~999999999": "the number to display the kaprekar steps of"
+    }
+})
+
+terminal.addCommand("qr", async function(args) {
+    
+    let api = "https://chart.apis.google.com/chart?chs=500x500&cht=qr&chld=L&chl="
+    let url = api + encodeURIComponent(args.text)
+
+    terminal.addLineBreak()
+    terminal.printImg(url)
+    terminal.addLineBreak()
+
+}, {
+    description: "generate a qr code",
+    args: {
+        "*text": "the text to encode"
+    }
+})
+
+{
+
+    function binom(n, k) {
+        let res = 1
+        for (let i = 1; i <= k; i++) {
+            res *= n - k + i
+            res /= i
+        }
+        return res
+    }
+
+    function binompdf(n, p, k) {
+        return binom(n, k) * Math.pow(p, k) * Math.pow(1 - p, n - k)
+    }
+
+    function binomcdf(n, p, lower, upper) {
+        let res = 0
+        for (let i = lower; i <= upper; i++) {
+            res += binompdf(n, p, i)
+        }
+        return res
+    }
+
+    terminal.addCommand("ncr", async function(args) {
+        let n = ~~args.n
+        let k = ~~args.k
+        if (k > n) {
+            throw new Error("k must be smaller than n")
+        }
+        terminal.printLine(binom(n, k))
+    }, {
+        description: "calculate binomial distribution value",
+        args: {
+            "n:n:0~100": "the number of trials",
+            "k:n:0~100": "the number of successes"
+        }
+    })
+
+    terminal.addCommand("binompdf", async function(args) {
+        let n = ~~args.n
+        let k = ~~args.k
+        if (k > n) {
+            throw new Error("k must be smaller than n")
+        }
+        terminal.printLine(binompdf(n, args.p, k))
+    }, {
+        description: "calculate binomial distribution value",
+        args: {
+            "n:n:0~100": "the number of trials",
+            "p:n:0~1": "the probability of success",
+            "k:n:0~100": "the number of successes"
+        }
+    })
+
+    terminal.addCommand("binomcdf", function(args) {
+        let n = ~~args.n
+        let lower = ~~args.lower
+        let upper = ~~args.upper
+        terminal.printLine(binomcdf(n, args.p, lower, upper))
+    }, {
+        description: "calculate the binomial cumulative distribution function",
+        args: {
+            "n:n:1~1000": "the number of trials",
+            "p:n:0~1": "the probability of success",
+            "lower:n:0~1000": "the lower bound",
+            "upper:n:0~1000": "the upper bound"
+        }
+    })
+
+}
