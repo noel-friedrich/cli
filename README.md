@@ -60,7 +60,7 @@ The page is build to work like a Unix-Terminal, including:
 ## Commands
 
 You may execute a command by simply typing it into the terminal and pressing `Enter`  
-The following list can also be viewed using the `whatis *` command
+The following list can also be viewed using the [`whatis *`](https://noel-friedrich.de/cli/?cmd=whatis%20*) command
 
 | Command      | Description                                                     |
 | ------------ | --------------------------------------------------------------- |
