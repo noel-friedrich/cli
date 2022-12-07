@@ -1,7 +1,7 @@
 # cli - web terminal
 > simulating a terminal inside a website  
 > available at [noel-friedrich.de/cli](https://noel-friedrich.de/cli/)  
-> replaced by [terminal Project](https://github.com/noel-friedrich/cli/)  
+> replaced by [terminal Project](https://github.com/noel-friedrich/terminal/)  
 
 ## Table of contents
 * [Introduction](#introduction)
