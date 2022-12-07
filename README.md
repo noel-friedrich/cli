@@ -1,6 +1,7 @@
 # cli - web terminal
 > simulating a terminal inside a website  
 > available at [noel-friedrich.de/cli](https://noel-friedrich.de/cli/)
+> replaced by [terminal Project](https://github.com/noel-friedrich/cli/)
 
 ## Table of contents
 * [Introduction](#introduction)
@@ -202,4 +203,4 @@ The following list can also be viewed using the [`whatis *`](https://noel-friedr
  | [`zip`](https://noel-friedrich.de/cli/?cmd=zip) | zip a file |
 
 ## Status
-Project is _IN PROGRESS_
+Project is _NO LONGER IN PROGRESS_
